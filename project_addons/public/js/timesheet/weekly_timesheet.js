@@ -8,8 +8,13 @@ class WeeklyTimesheet {
         this.activity_types = [];
         this.time_entries = {};
         this.current_timesheet = null; // Track current timesheet
+        this.has_unsaved_changes = false; // Track unsaved changes
+        this.is_submitted = false; // Track if timesheet is submitted
+        this.current_docstatus = 0; // Track docstatus (0=Draft, 1=Submitted, 2=Cancelled)
 
         this.setup();
+        this.setup_global_indicators();
+        this.setup_page_unload_protection();
     }
 
     setup() {
@@ -104,6 +109,65 @@ class WeeklyTimesheet {
 
     setup_page_actions() {
         // No page actions needed anymore
+    }
+
+    setup_global_indicators() {
+        // Add CSS styles for read-only timesheet
+        const style = $(`
+            <style>
+                .readonly-timesheet {
+                    opacity: 0.8;
+                    pointer-events: none;
+                }
+                .readonly-input {
+                    background-color: #f8f9fa !important;
+                    border-color: #dee2e6 !important;
+                    color: #6c757d !important;
+                    cursor: not-allowed !important;
+                }
+                .disabled-icon {
+                    color: #dee2e6 !important;
+                    cursor: not-allowed !important;
+                    pointer-events: none;
+                }
+                .disabled-btn {
+                    opacity: 0.5;
+                    cursor: not-allowed !important;
+                    pointer-events: none;
+                }
+                .readonly-timesheet .time-input:disabled,
+                .readonly-timesheet .project-search:disabled,
+                .readonly-timesheet .activity-search:disabled {
+                    background-color: #f8f9fa !important;
+                    border-color: #dee2e6 !important;
+                    color: #6c757d !important;
+                }
+            </style>
+        `);
+
+        $('head').append(style);
+    }
+
+    setup_page_unload_protection() {
+        // Prevent accidental navigation when there are unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (this.has_unsaved_changes) {
+                const message = 'You have unsaved changes. Are you sure you want to leave?';
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // Also prevent Frappe navigation
+        $(document).on('page_change', (e) => {
+            if (this.has_unsaved_changes) {
+                if (!confirm('You have unsaved changes. Are you sure you want to leave this page?')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+        });
     }
 
     get_week_start(date) {
@@ -284,10 +348,10 @@ class WeeklyTimesheet {
                     this.projects = r.message.projects;
                     this.activity_types = r.message.activity_types;
 
-                    // Extract current timesheet info
+                    // Extract current timesheet info - use latest modified timesheet
                     this.current_timesheet = null;
                     if (r.message.timesheets && r.message.timesheets.length > 0) {
-                        // Get the first timesheet name (they should all be from the same timesheet for the week)
+                        // Get the first timesheet (latest modified due to ORDER BY ts.modified DESC)
                         this.current_timesheet = r.message.timesheets[0].name;
                     }
 
@@ -295,8 +359,19 @@ class WeeklyTimesheet {
 
                     // Update status based on existing timesheet data
                     if (r.message.timesheets && r.message.timesheets.length > 0) {
-                        const timesheet = r.message.timesheets[0];
-                        this.update_status_indicator(timesheet.status, timesheet.docstatus);
+                        // Use the first timesheet (latest modified)
+                        const latestTimesheet = r.message.timesheets[0];
+                        this.current_docstatus = latestTimesheet.docstatus || 0;
+                        this.is_submitted = this.current_docstatus === 1;
+                        this.update_status_indicator(latestTimesheet.status, latestTimesheet.docstatus);
+                        this.update_timesheet_id_display(latestTimesheet.name);
+                        this.update_ui_for_submission_status();
+                    } else {
+                        // No existing timesheet, reset to draft state
+                        this.current_docstatus = 0;
+                        this.is_submitted = false;
+                        this.update_timesheet_id_display(null);
+                        this.update_ui_for_submission_status();
                     }
                 }
             }
@@ -358,9 +433,25 @@ class WeeklyTimesheet {
                                 </div>
                                 <div class="col-md-3">
                                     <div class="text-center">
+                                        <div id="unsaved-changes-indicator" style="display: none; margin-bottom: 8px;">
+                                            <span class="badge badge-warning">
+                                                <i class="fa fa-exclamation-circle"></i> ${__('Unsaved Changes')}
+                                            </span>
+                                        </div>
+                                        <div id="submission-actions" style="display: none; margin-bottom: 8px;">
+                                            <button class="btn btn-xs btn-warning" id="amend-timesheet-btn" style="display: none;">
+                                                <i class="fa fa-edit"></i> ${__('Amend')}
+                                            </button>
+                                            <button class="btn btn-xs btn-danger" id="cancel-timesheet-btn" style="display: none;">
+                                                <i class="fa fa-ban"></i> ${__('Cancel')}
+                                            </button>
+                                        </div>
                                         <span class="indicator gray" id="status-indicator">
                                             ${__('Draft')}
                                         </span>
+                                        <div id="timesheet-id-display" style="margin-top: 5px; display: none;">
+                                            <small class="text-muted">ID: <span id="timesheet-id"></span></small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -370,6 +461,15 @@ class WeeklyTimesheet {
             </div>
         `;
         container.append(summary_html);
+
+        // Setup event handlers for amend/cancel buttons
+        $('#amend-timesheet-btn').on('click', () => {
+            this.amend_timesheet();
+        });
+
+        $('#cancel-timesheet-btn').on('click', () => {
+            this.cancel_timesheet();
+        });
     }
 
     render_grid(container) {
@@ -1013,18 +1113,31 @@ class WeeklyTimesheet {
             this.handle_description_edit($(e.target));
         });
 
+        // Add instant hover tooltips for description icons
+        row.find('.time-description-icon').each((index, icon) => {
+            const $icon = $(icon);
+            this.setup_instant_tooltip($icon);
+        });
+
         // Remove row
         row.find('.remove-row').on('click', () => {
             // Clean up link field references
             if (this.link_fields && this.link_fields[row_id]) {
                 delete this.link_fields[row_id];
             }
-            
+
             // Remove associated dropdowns from body
             $(`.project-dropdown-${row_id}, .activity-dropdown-${row_id}`).remove();
-            
+
             row.remove();
             this.calculate_totals();
+
+            // Check if we still have meaningful changes after removing the row
+            if (this.has_meaningful_changes()) {
+                this.mark_as_changed();
+            } else {
+                this.mark_as_saved(); // Hide indicator if no meaningful changes remain
+            }
         });
     }
 
@@ -1032,12 +1145,14 @@ class WeeklyTimesheet {
         // Store project selection for this row
         this.time_entries[row_id] = this.time_entries[row_id] || {};
         this.time_entries[row_id].project = project_id;
+        this.mark_as_changed(); // Mark as changed when project is selected
     }
 
     handle_activity_selection(row_id, activity_id) {
         // Store activity selection for this row
         this.time_entries[row_id] = this.time_entries[row_id] || {};
         this.time_entries[row_id].activity_type = activity_id;
+        this.mark_as_changed(); // Mark as changed when activity is selected
     }
 
     handle_description_edit(icon) {
@@ -1064,6 +1179,8 @@ class WeeklyTimesheet {
             icon.attr('title', new_description || __('Click to add description'));
             icon.css('color', new_description ? '#007bff' : '#999');
 
+            this.mark_as_changed(); // Mark as changed when description is updated
+
         }, __('Edit Description'));
     }
 
@@ -1072,6 +1189,13 @@ class WeeklyTimesheet {
         input.val(this.format_hours(hours));
         this.calculate_row_total(row_id);
         this.calculate_totals();
+
+        // Check if we have meaningful changes after time modification
+        if (this.has_meaningful_changes()) {
+            this.mark_as_changed();
+        } else {
+            this.mark_as_saved(); // Hide indicator if no meaningful changes remain
+        }
     }
 
     parse_time_input(value) {
@@ -1147,6 +1271,8 @@ class WeeklyTimesheet {
 
     add_new_task_row() {
         this.add_task_row();
+        // Don't mark as changed just for adding an empty row
+        // The change will be marked when user actually enters data
     }
 
     populate_row_data(row_id, task_data) {
@@ -1190,6 +1316,9 @@ class WeeklyTimesheet {
                         indicator: 'green'
                     });
 
+                    // Remove changed indicator
+                    this.mark_as_saved();
+
                     // Update status indicator
                     this.update_status_indicator(r.message.status, r.message.docstatus);
 
@@ -1219,6 +1348,9 @@ class WeeklyTimesheet {
                             message: r.message.message || __('Timesheet submitted successfully'),
                             indicator: 'green'
                         });
+
+                        // Clear unsaved changes flag since timesheet is submitted
+                        this.mark_as_saved();
 
                         // Update status and refresh data
                         this.update_status_indicator('Submitted', 1);
@@ -1462,6 +1594,297 @@ class WeeklyTimesheet {
             message: __('Previous week timesheet copied successfully'),
             indicator: 'green'
         });
+    }
+
+    setup_instant_tooltip(icon) {
+        const tooltip = $(`
+            <div class="custom-tooltip" style="
+                position: absolute;
+                background: rgba(0,0,0,0.9);
+                color: white;
+                padding: 6px 8px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 10000;
+                display: none;
+                pointer-events: none;
+                max-width: 200px;
+                word-wrap: break-word;
+                white-space: pre-wrap;
+            "></div>
+        `);
+
+        $('body').append(tooltip);
+
+        icon.on('mouseenter', (e) => {
+            const description = icon.data('description') || __('Click to add description');
+            if (description && description.trim()) {
+                tooltip.text(description);
+
+                const iconOffset = icon.offset();
+                const iconWidth = icon.outerWidth();
+                const iconHeight = icon.outerHeight();
+
+                // Position tooltip above the icon
+                tooltip.css({
+                    'left': iconOffset.left + (iconWidth / 2) - (tooltip.outerWidth() / 2) + 'px',
+                    'top': iconOffset.top - tooltip.outerHeight() - 5 + 'px',
+                    'display': 'block'
+                });
+            }
+        });
+
+        icon.on('mouseleave', () => {
+            tooltip.hide();
+        });
+
+        // Clean up tooltip when row is removed
+        icon.closest('tr').on('remove', () => {
+            tooltip.remove();
+        });
+    }
+
+    mark_as_changed() {
+        // Don't mark as changed if timesheet is submitted or cancelled
+        if (this.current_docstatus !== 0) {
+            return;
+        }
+
+        // Only mark as changed if there are actual meaningful changes
+        if (!this.has_meaningful_changes()) {
+            return;
+        }
+
+        // Set the flag and show yellow indicator above status
+        this.has_unsaved_changes = true;
+        $('#unsaved-changes-indicator').fadeIn(300);
+    }
+
+    has_meaningful_changes() {
+        // Check if there are any actual time entries or selections
+        let has_time_entries = false;
+        let has_selections = false;
+
+        // Check for time entries
+        $('#timesheet-rows .time-input').each((i, input) => {
+            const value = $(input).val();
+            if (value && value.trim() && value !== '0:00') {
+                has_time_entries = true;
+                return false; // break
+            }
+        });
+
+        // Check for project/activity selections
+        $('#timesheet-rows .project-value, #timesheet-rows .activity-value').each((i, input) => {
+            const value = $(input).val();
+            if (value && value.trim()) {
+                has_selections = true;
+                return false; // break
+            }
+        });
+
+        // Only consider it a meaningful change if there's actual data
+        return has_time_entries || has_selections;
+    }
+
+    mark_as_saved() {
+        // Clear the flag and hide yellow indicator
+        this.has_unsaved_changes = false;
+        $('#unsaved-changes-indicator').fadeOut(300);
+    }
+
+    cleanup() {
+        // Clean up when page is destroyed
+        this.has_unsaved_changes = false;
+    }
+
+    update_ui_for_submission_status() {
+        // Hide all action buttons first
+        $('#submission-actions').hide();
+        $('#amend-timesheet-btn, #cancel-timesheet-btn').hide();
+
+        if (this.current_docstatus === 1) {
+            // Submitted timesheet - show cancel button only
+            $('#submission-actions').show();
+            $('#cancel-timesheet-btn').show();
+
+            // Hide save/submit buttons for submitted timesheets
+            $('#save-btn, #submit-weekly-btn').hide();
+
+            // Disable all form inputs
+            this.disable_all_inputs();
+
+            // Hide copy previous week button
+            $('#copy-previous-week-btn').hide();
+
+            // Add read-only visual styling
+            $('.timesheet-grid').addClass('readonly-timesheet');
+
+        } else if (this.current_docstatus === 2) {
+            // Cancelled timesheet - show amend button only
+            $('#submission-actions').show();
+            $('#amend-timesheet-btn').show();
+
+            // Hide save/submit buttons for cancelled timesheets
+            $('#save-btn, #submit-weekly-btn').hide();
+
+            // Disable all form inputs
+            this.disable_all_inputs();
+
+            // Hide copy previous week button
+            $('#copy-previous-week-btn').hide();
+
+            // Add read-only visual styling
+            $('.timesheet-grid').addClass('readonly-timesheet');
+
+        } else {
+            // Draft timesheet (docstatus = 0) - normal editing mode
+            $('#submission-actions').hide();
+
+            // Show save/submit buttons for draft timesheets
+            $('#save-btn, #submit-weekly-btn').show();
+
+            // Enable all form inputs
+            this.enable_all_inputs();
+
+            // Show copy previous week button
+            $('#copy-previous-week-btn').show();
+
+            // Remove read-only visual styling
+            $('.timesheet-grid').removeClass('readonly-timesheet');
+        }
+    }
+
+    disable_all_inputs() {
+        // Disable time inputs
+        $('.time-input').prop('disabled', true).addClass('readonly-input');
+
+        // Disable project and activity dropdowns
+        $('.project-search, .activity-search').prop('disabled', true).addClass('readonly-input');
+
+        // Disable description icons
+        $('.time-description-icon').addClass('disabled-icon').off('click');
+
+        // Disable add entry button
+        $('#add-task-btn').prop('disabled', true);
+
+        // Disable remove row buttons
+        $('.remove-row').prop('disabled', true).addClass('disabled-btn');
+    }
+
+    enable_all_inputs() {
+        // Enable time inputs
+        $('.time-input').prop('disabled', false).removeClass('readonly-input');
+
+        // Enable project and activity dropdowns
+        $('.project-search, .activity-search').prop('disabled', false).removeClass('readonly-input');
+
+        // Enable description icons (re-setup click handlers)
+        $('.time-description-icon').removeClass('disabled-icon');
+        this.setup_description_handlers();
+
+        // Enable add entry button
+        $('#add-task-btn').prop('disabled', false);
+
+        // Enable remove row buttons
+        $('.remove-row').prop('disabled', false).removeClass('disabled-btn');
+    }
+
+    setup_description_handlers() {
+        // Re-setup description icon click handlers
+        $('.time-description-icon').off('click').on('click', (e) => {
+            if (this.current_docstatus === 0) {
+                this.handle_description_edit($(e.target));
+            }
+        });
+    }
+
+    amend_timesheet() {
+        if (!this.current_timesheet) {
+            frappe.msgprint(__('No timesheet to amend'));
+            return;
+        }
+
+        frappe.confirm(__('Are you sure you want to amend this timesheet? This will create a new draft copy.'), () => {
+            frappe.call({
+                method: 'project_addons.project_addons.api.timesheet.amend_timesheet',
+                args: {
+                    timesheet_name: this.current_timesheet
+                },
+                callback: (r) => {
+                    if (r.message) {
+                        frappe.show_alert({
+                            message: __('Timesheet amended successfully. You can now edit the new draft.'),
+                            indicator: 'green'
+                        });
+
+                        // Update current timesheet reference to the new amended one
+                        this.current_timesheet = r.message.name;
+                        this.current_docstatus = 0;
+                        this.is_submitted = false;
+
+                        // Update the week selection to match the amended timesheet
+                        if (r.message.start_date) {
+                            $('#week-start-date').val(r.message.start_date);
+                        }
+
+                        // Update UI immediately to show draft state
+                        this.update_ui_for_submission_status();
+                        this.update_status_indicator('Draft', 0);
+                        this.update_timesheet_id_display(r.message.name);
+
+                        // Reload data to show the amended timesheet data
+                        this.load_data();
+                    }
+                }
+            });
+        });
+    }
+
+    cancel_timesheet() {
+        if (!this.current_timesheet) {
+            frappe.msgprint(__('No timesheet to cancel'));
+            return;
+        }
+
+        frappe.confirm(__('Are you sure you want to cancel this timesheet? This action cannot be undone.'), () => {
+            frappe.call({
+                method: 'project_addons.project_addons.api.timesheet.cancel_timesheet',
+                args: {
+                    timesheet_name: this.current_timesheet
+                },
+                callback: (r) => {
+                    if (r.message) {
+                        frappe.show_alert({
+                            message: __('Timesheet cancelled successfully'),
+                            indicator: 'orange'
+                        });
+
+                        // Update status
+                        this.current_docstatus = 2;
+                        this.is_submitted = false;
+
+                        // Update UI immediately
+                        this.update_ui_for_submission_status();
+                        this.update_status_indicator('Cancelled', 2);
+                        this.update_timesheet_id_display(this.current_timesheet);
+
+                        // Reload data to reflect cancellation
+                        this.load_data();
+                    }
+                }
+            });
+        });
+    }
+
+    update_timesheet_id_display(timesheet_id) {
+        if (timesheet_id) {
+            $('#timesheet-id').text(timesheet_id);
+            $('#timesheet-id-display').show();
+        } else {
+            $('#timesheet-id-display').hide();
+        }
     }
 
     apply_leave() {

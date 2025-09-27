@@ -46,7 +46,7 @@ def get_weekly_timesheet_data(employee=None, start_date=None):
         WHERE ts.employee = %s
         AND ts.start_date >= %s
         AND ts.end_date <= %s
-        ORDER BY ts.start_date, tsd.from_time
+        ORDER BY ts.modified DESC, ts.start_date, tsd.from_time
     """,
         (employee, start_date, end_date),
         as_dict=True,
@@ -247,3 +247,111 @@ def get_activity_cost(employee, activity_type):
     )
 
     return activity or {"billing_rate": 0, "costing_rate": 0}
+
+
+@frappe.whitelist()
+def cancel_timesheet(timesheet_name):
+    """Cancel a submitted timesheet"""
+
+    timesheet = frappe.get_doc("Timesheet", timesheet_name)
+
+    if timesheet.docstatus != 1:
+        frappe.throw(_("Only submitted timesheets can be cancelled"))
+
+    timesheet.flags.ignore_permissions = True
+    timesheet.cancel()
+
+    return {
+        "message": _("Timesheet cancelled successfully"),
+        "name": timesheet.name,
+        "docstatus": timesheet.docstatus,
+        "status": timesheet.status
+    }
+
+
+@frappe.whitelist()
+def amend_timesheet(timesheet_name):
+    """Amend a cancelled timesheet - creates a new draft copy"""
+
+    original_timesheet = frappe.get_doc("Timesheet", timesheet_name)
+
+    if original_timesheet.docstatus != 2:
+        frappe.throw(_("Only cancelled timesheets can be amended"))
+
+    # Check if there's already a draft timesheet for the same date range and employee
+    existing_timesheets = frappe.db.sql("""
+        SELECT name, docstatus, status
+        FROM `tabTimesheet`
+        WHERE employee = %s
+        AND start_date = %s
+        AND end_date = %s
+        AND docstatus = 0
+        ORDER BY creation DESC
+    """, (original_timesheet.employee, original_timesheet.start_date, original_timesheet.end_date), as_dict=True)
+
+    # If there's already a draft, return it
+    if existing_timesheets:
+        existing_timesheet = frappe.get_doc("Timesheet", existing_timesheets[0].name)
+        return {
+            "message": _("Draft timesheet already exists for this date range"),
+            "name": existing_timesheet.name,
+            "docstatus": existing_timesheet.docstatus,
+            "status": existing_timesheet.status,
+            "start_date": str(existing_timesheet.start_date),
+            "end_date": str(existing_timesheet.end_date),
+            "employee": existing_timesheet.employee
+        }
+
+    # Try to create new timesheet with error handling for duplicates
+    try:
+        # Create new timesheet by copying the cancelled one
+        new_timesheet = frappe.copy_doc(original_timesheet)
+
+        # Reset document status to draft
+        new_timesheet.docstatus = 0
+        new_timesheet.status = "Draft"
+        new_timesheet.amended_from = timesheet_name
+
+        # Clear any submission-related fields
+        new_timesheet.submitted_by = None
+        new_timesheet.submitted_on = None
+
+        # Save the new timesheet - let Frappe handle the incremental naming
+        new_timesheet.flags.ignore_permissions = True
+        new_timesheet.save()
+
+    except frappe.DuplicateEntryError:
+        # If duplicate, find and return the existing amended timesheet
+        base_name = original_timesheet.name
+        amended_name = f"{base_name}-1"
+
+        # Check if the duplicate is the first amendment
+        if frappe.db.exists("Timesheet", amended_name):
+            existing_timesheet = frappe.get_doc("Timesheet", amended_name)
+            return {
+                "message": _("Amended timesheet already exists"),
+                "name": existing_timesheet.name,
+                "docstatus": existing_timesheet.docstatus,
+                "status": existing_timesheet.status,
+                "start_date": str(existing_timesheet.start_date),
+                "end_date": str(existing_timesheet.end_date),
+                "employee": existing_timesheet.employee
+            }
+        else:
+            # Re-raise the error if it's not what we expected
+            raise
+
+    except Exception as e:
+        # Handle any other errors
+        frappe.throw(_("Error creating amended timesheet: {0}").format(str(e)))
+
+    return {
+        "message": _("Timesheet amended successfully"),
+        "name": new_timesheet.name,
+        "docstatus": new_timesheet.docstatus,
+        "status": new_timesheet.status,
+        "amended_from": timesheet_name,
+        "start_date": str(new_timesheet.start_date),
+        "end_date": str(new_timesheet.end_date),
+        "employee": new_timesheet.employee
+    }
