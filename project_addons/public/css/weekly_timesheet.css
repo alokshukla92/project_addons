@@ -1,0 +1,1295 @@
+/* Weekly Timesheet Styles */
+.timesheet-content {
+    padding: 20px;
+    max-width: 100%;
+    overflow: visible; /* Allow dropdowns to show */
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+}
+
+.timesheet-content .row {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+}
+
+.timesheet-content .col-md-12 {
+    padding: 0 15px;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible; /* Allow dropdowns to show */
+}
+
+.timesheet-grid {
+    font-size: 13px;
+    margin-bottom: 25px;
+    width: 100%;
+    table-layout: fixed;
+    max-width: 100%; /* Added max-width constraint */
+}
+
+.timesheet-grid-container {
+    margin-bottom: 20px;
+    overflow-x: auto; /* Changed to auto for horizontal scroll when needed */
+    max-width: 100%;
+}
+
+.timesheet-grid th {
+    background-color: var(--gray-100);
+    border-color: var(--border-color);
+    font-weight: 600;
+    padding: 16px 12px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.timesheet-grid td {
+    padding: 12px 15px;
+    border-color: var(--border-color);
+    vertical-align: middle;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.timesheet-grid .task-info {
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.timesheet-grid .day-cell {
+    width: 85px;
+    max-width: 85px;
+    min-width: 85px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px 4px;
+    position: relative;
+    overflow: hidden; /* Changed from visible to hidden */
+}
+
+.timesheet-grid .project-cell,
+.timesheet-grid .activity-cell {
+    width: 200px;
+    max-width: 200px;
+    min-width: 200px;
+    padding: 12px 15px;
+    text-align: center;
+    vertical-align: middle;
+    overflow: visible; /* Allow dropdowns to show */
+}
+
+/* Billable column removed - no styles needed */
+
+.timesheet-grid .time-input {
+    width: 60px;
+    height: 36px;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+    background: white;
+    padding: 6px 4px;
+    flex-shrink: 0;
+    display: block;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+    max-width: 100%; /* Added max-width constraint */
+}
+
+.timesheet-grid .time-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.25);
+}
+
+.timesheet-grid .time-entry-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    height: 100%;
+    min-height: 36px;
+    flex-wrap: nowrap;
+    flex-direction: row;
+    position: relative;
+    overflow: hidden; /* Changed from visible to hidden */
+}
+
+.timesheet-grid .time-description-icon {
+    font-size: 14px;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    line-height: 1;
+    display: block;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.timesheet-grid .time-description-icon:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* Billable checkbox removed - no styles needed */
+
+.timesheet-grid .form-check {
+    margin: 0;
+}
+
+.timesheet-grid .form-check-label {
+    cursor: pointer;
+}
+
+.timesheet-grid .project-link-field,
+.timesheet-grid .activity-link-field {
+    width: 100%;
+    position: relative;
+    text-align: center;
+    overflow: visible; /* Allow dropdowns to show */
+}
+
+.timesheet-grid .project-link-field .form-control,
+.timesheet-grid .activity-link-field .form-control,
+.timesheet-grid .project-search,
+.timesheet-grid .activity-search {
+    font-size: 12px;
+    height: 38px;
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    width: 100%;
+    max-width: 100%; /* Added max-width constraint */
+    background: white;
+    border-radius: 3px;
+    box-sizing: border-box; /* Added box-sizing */
+}
+
+.timesheet-grid .project-search:focus,
+.timesheet-grid .activity-search:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.25);
+}
+
+.timesheet-grid .project-search:hover,
+.timesheet-grid .activity-search:hover {
+    border-color: var(--gray-400);
+}
+
+.timesheet-grid .project-search-container,
+.timesheet-grid .activity-search-container {
+    width: 100%;
+    position: relative;
+    margin: 0 auto;
+    overflow: visible; /* Allow dropdowns to show */
+}
+
+.timesheet-grid .project-dropdown,
+.timesheet-grid .activity-dropdown {
+    font-size: 12px;
+    max-width: 100%; /* Added max-width constraint */
+}
+
+.timesheet-grid .project-dropdown .dropdown-item,
+.timesheet-grid .activity-dropdown .dropdown-item {
+    transition: background-color 0.15s ease;
+}
+
+.timesheet-grid .project-dropdown .dropdown-item:hover,
+.timesheet-grid .activity-dropdown .dropdown-item:hover {
+    background-color: var(--gray-50) !important;
+}
+
+/* Fix card overflow for dropdowns - only for dropdown visibility */
+.timesheet-grid .card {
+    overflow: visible; /* Allow dropdowns to show */
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.timesheet-grid .card-body {
+    overflow: visible; /* Allow dropdowns to show */
+    padding: 0;
+}
+
+.timesheet-grid .table-responsive {
+    overflow-x: auto !important; /* Changed to auto for horizontal scroll */
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+.timesheet-grid-container {
+    overflow-x: auto !important; /* Changed to auto for horizontal scroll */
+    margin-bottom: 20px;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Only allow overflow for cells with dropdowns - but with constraints */
+.timesheet-grid .project-cell,
+.timesheet-grid .activity-cell {
+    overflow: visible; /* Keep visible for dropdowns but with positioning fixes */
+    position: relative; /* Ensure proper positioning context */
+}
+
+.timesheet-grid td {
+    overflow: hidden; /* Changed from visible to hidden for most cells */
+    position: relative;
+}
+
+.timesheet-grid .task-total {
+    background-color: var(--gray-50);
+    font-weight: 600;
+    color: var(--text-color);
+    text-align: center;
+    vertical-align: middle;
+}
+
+.timesheet-grid tfoot td {
+    background-color: var(--gray-100);
+    font-weight: 600;
+    border-top: 2px solid var(--border-color);
+    padding: 14px 15px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.timesheet-grid .remove-row {
+    opacity: 0.6;
+    padding: 4px 8px;
+    display: block;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.timesheet-grid .remove-row:hover {
+    opacity: 1;
+}
+
+/* Ensure delete button stays within cell boundaries */
+.timesheet-grid td:last-child {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center;
+    overflow: hidden;
+}
+
+.timesheet-grid .remove-row {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding: 4px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+}
+
+/* Indicators */
+.timesheet-grid .indicator,
+.timesheet-summary .indicator {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.timesheet-grid .indicator.green,
+.timesheet-summary .indicator.green {
+    background-color: var(--green-100);
+    color: var(--green-600);
+    border: 1px solid var(--green-200);
+}
+
+.timesheet-grid .indicator.orange,
+.timesheet-summary .indicator.orange {
+    background-color: var(--orange-100);
+    color: var(--orange-600);
+    border: 1px solid var(--orange-200);
+}
+
+.timesheet-grid .indicator.gray,
+.timesheet-summary .indicator.gray {
+    background-color: var(--gray-100);
+    color: var(--gray-600);
+    border: 1px solid var(--gray-200);
+}
+
+.timesheet-grid .indicator.red,
+.timesheet-summary .indicator.red {
+    background-color: var(--red-100);
+    color: var(--red-600);
+    border: 1px solid var(--red-200);
+}
+
+/* Summary Cards */
+.timesheet-summary {
+    margin-bottom: 25px;
+}
+
+.timesheet-summary .card {
+    border: 1px solid var(--border-color);
+    box-shadow: none;
+    border-radius: 6px;
+    max-width: 100%; /* Added max-width constraint */
+    overflow: hidden; /* Added overflow hidden */
+}
+
+.timesheet-summary .card-header {
+    background-color: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+    padding: 12px 16px;
+}
+
+.timesheet-summary .card-body {
+    padding: 16px;
+}
+
+.timesheet-summary h4 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.timesheet-summary .text-primary {
+    color: var(--primary-color) !important;
+}
+
+.timesheet-summary .text-info {
+    color: var(--blue-500) !important;
+}
+
+.timesheet-summary .text-success {
+    color: var(--green-500) !important;
+}
+
+/* Action Buttons */
+.timesheet-actions {
+    padding: 15px 20px;
+}
+
+.timesheet-actions .btn {
+    font-size: 12px;
+    padding: 4px 8px;
+    margin: 0 2px;
+}
+
+.timesheet-actions .btn-xs {
+    padding: 2px 6px;
+    font-size: 11px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .timesheet-grid .project-cell,
+    .timesheet-grid .activity-cell {
+        width: 180px;
+        max-width: 180px;
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 992px) {
+    .timesheet-content {
+        padding: 15px;
+    }
+
+    .timesheet-summary .card-body .row .col-md-3 {
+        margin-bottom: 15px;
+    }
+
+    .timesheet-grid .project-cell,
+    .timesheet-grid .activity-cell {
+        width: 160px;
+        max-width: 160px;
+        min-width: 160px;
+    }
+
+    .timesheet-grid .day-cell {
+        width: 75px;
+        max-width: 75px;
+        min-width: 75px;
+    }
+}
+
+@media (max-width: 768px) {
+    .timesheet-content {
+        padding: 10px;
+    }
+
+    /* Make summary cards stack vertically */
+    .timesheet-summary .card-body .row .col-md-3 {
+        flex: 0 0 50%;
+        max-width: 50%;
+        margin-bottom: 15px;
+    }
+
+    /* Horizontal scroll for grid */
+    .timesheet-grid-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .timesheet-grid {
+        font-size: 11px;
+        min-width: 650px; /* Adjusted minimum width after removing billable column */
+        width: max-content;
+    }
+
+    .timesheet-grid th,
+    .timesheet-grid td {
+        padding: 8px 6px;
+        white-space: nowrap;
+    }
+
+    .timesheet-grid .project-cell,
+    .timesheet-grid .activity-cell {
+        width: 120px;
+        max-width: 120px;
+        min-width: 120px;
+        font-size: 10px;
+    }
+
+    .timesheet-grid .day-cell {
+        width: 70px;
+        max-width: 70px;
+        min-width: 70px;
+    }
+
+    .timesheet-grid .time-input {
+        width: 50px;
+        height: 32px;
+        font-size: 10px;
+        padding: 4px 2px;
+    }
+
+    .timesheet-grid .time-description-icon {
+        font-size: 12px;
+        margin-left: 1px;
+    }
+
+    /* Billable column removed - no styles needed */
+
+        /* Mobile delete button */
+    .timesheet-grid .remove-row {
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        max-width: 24px !important;
+        padding: 3px !important;
+        font-size: 10px !important;
+    }
+
+    .timesheet-grid td:last-child,
+    .timesheet-grid .actions-cell {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+        padding: 3px !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row {
+        width: 22px !important;
+        height: 22px !important;
+        min-width: 22px !important;
+        max-width: 22px !important;
+        padding: 3px !important;
+        font-size: 10px !important;
+    }
+
+    /* Mobile-friendly dropdowns */
+    .timesheet-grid .project-search,
+    .timesheet-grid .activity-search {
+        font-size: 10px;
+        height: 32px;
+        padding: 4px 6px;
+    }
+
+    /* Action buttons */
+    .timesheet-actions {
+        text-align: center;
+        padding: 10px;
+    }
+
+    .timesheet-actions .btn {
+        margin-bottom: 8px;
+        margin: 0 4px 8px 4px;
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+
+    /* Footer buttons */
+    .timesheet-grid tfoot .btn {
+        font-size: 10px;
+        padding: 4px 8px;
+        margin: 2px;
+    }
+
+    .timesheet-grid tfoot .row .col-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .timesheet-content {
+        padding: 5px;
+    }
+
+    /* Stack summary cards vertically */
+    .timesheet-summary .card-body .row .col-md-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    /* Further optimize grid for very small screens */
+    .timesheet-grid {
+        font-size: 9px;
+        min-width: 550px; /* Adjusted after removing billable column */
+    }
+
+    .timesheet-grid th,
+    .timesheet-grid td {
+        padding: 4px 2px;
+    }
+
+    .timesheet-grid .project-cell,
+    .timesheet-grid .activity-cell {
+        width: 100px;
+        max-width: 100px;
+        min-width: 100px;
+        font-size: 9px;
+    }
+
+    .timesheet-grid .day-cell {
+        width: 60px;
+        max-width: 60px;
+        min-width: 60px;
+    }
+
+    .timesheet-grid .time-input {
+        width: 45px;
+        height: 28px;
+        font-size: 9px;
+        padding: 2px 1px;
+    }
+
+    .timesheet-grid .time-description-icon {
+        font-size: 10px;
+    }
+
+    .timesheet-grid .billable-cell {
+        width: 50px;
+        max-width: 50px;
+        min-width: 50px;
+    }
+
+    /* Billable checkbox removed - no styles needed */
+
+        /* Very small screen delete button */
+    .timesheet-grid .remove-row {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
+        max-width: 20px !important;
+        padding: 2px !important;
+        font-size: 9px !important;
+    }
+
+    .timesheet-grid td:last-child,
+    .timesheet-grid .actions-cell {
+        width: 25px !important;
+        min-width: 25px !important;
+        max-width: 25px !important;
+        padding: 2px !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row {
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-width: 18px !important;
+        padding: 2px !important;
+        font-size: 9px !important;
+    }
+
+    /* Filters on mobile */
+    .row.mb-3 .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        margin-bottom: 10px;
+    }
+
+    /* Week navigation buttons */
+    #prev-week, #next-week {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    /* Add horizontal scroll indicator */
+    .timesheet-grid-container::after {
+        content: "← Scroll horizontally to view all days →";
+        display: block;
+        text-align: center;
+        font-size: 10px;
+        color: var(--text-muted);
+        padding: 5px;
+        background: var(--gray-50);
+        margin-top: -1px;
+        border: 1px solid var(--border-color);
+        border-top: none;
+    }
+}
+
+/* Day cell highlighting */
+.timesheet-grid .day-cell:hover {
+    background-color: var(--gray-50);
+}
+
+.timesheet-grid .day-cell.weekend {
+    background-color: var(--yellow-50);
+}
+
+.timesheet-grid .day-cell.today {
+    background-color: var(--blue-50);
+    border-color: var(--blue-200);
+}
+
+/* Loading states */
+.timesheet-loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.timesheet-loading .spinner {
+    margin-bottom: 16px;
+}
+
+/* Empty state */
+.timesheet-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.timesheet-empty .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+/* Validation errors */
+.timesheet-grid .has-error .time-input {
+    border-color: var(--red-500);
+    background-color: var(--red-50);
+}
+
+.timesheet-grid .has-error .form-control {
+    border-color: var(--red-500);
+}
+
+/* Success states */
+.timesheet-grid .has-success .time-input {
+    border-color: var(--green-500);
+    background-color: var(--green-50);
+}
+
+/* Sticky header for large tables */
+.timesheet-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+    box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Additional container fixes */
+.timesheet-content .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    max-width: 100% !important;
+}
+
+.timesheet-content .col-md-12 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Force grid to stay within bounds */
+.timesheet-grid thead th,
+.timesheet-grid tbody td,
+.timesheet-grid tfoot td {
+    white-space: nowrap;
+    overflow: hidden; /* Changed from visible to hidden */
+    position: relative;
+}
+
+/* Ensure parent containers don't constrain but also don't overflow */
+.frappe-container,
+.page-content,
+.main-section {
+    overflow: visible !important; /* Allow dropdowns to show */
+    max-width: 100% !important; /* Changed from none to 100% */
+}
+
+/* Print styles */
+@media print {
+    .timesheet-actions,
+    .page-actions,
+    .btn {
+        display: none !important;
+    }
+
+    .timesheet-grid {
+        font-size: 10px;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+}
+
+/* Additional fixes for dropdown positioning */
+.timesheet-grid .project-dropdown,
+.timesheet-grid .activity-dropdown {
+    position: fixed !important; /* Use fixed positioning to appear on top */
+    z-index: 999999 !important; /* Higher z-index to appear above everything */
+    background: white;
+    border: none;
+    border-radius: 6px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    max-height: 200px;
+    overflow-y: auto;
+    min-width: 220px;
+    margin-top: 2px;
+    animation: dropdown-appear 0.15s ease-out;
+    transform-origin: top center;
+}
+
+@keyframes dropdown-appear {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scaleY(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+    }
+}
+
+/* Ensure dropdowns don't overflow their containers */
+.timesheet-grid .project-cell,
+.timesheet-grid .activity-cell {
+    position: relative;
+    z-index: 1000;
+}
+
+/* Fix for table layout issues */
+.timesheet-grid {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Ensure all form elements respect container boundaries */
+.timesheet-grid input,
+.timesheet-grid select,
+.timesheet-grid textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Additional responsive fixes */
+@media (max-width: 1200px) {
+    .timesheet-grid-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .timesheet-grid {
+        min-width: 1000px; /* Adjusted after removing billable column */
+    }
+}
+
+@media (max-width: 992px) {
+    .timesheet-grid-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .timesheet-grid {
+        min-width: 800px; /* Adjusted after removing billable column */
+    }
+}
+
+/* Ensure proper scrolling behavior */
+.timesheet-grid-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.timesheet-grid-container::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 4px;
+}
+
+.timesheet-grid-container::-webkit-scrollbar-thumb {
+    background: var(--gray-400);
+    border-radius: 4px;
+}
+
+.timesheet-grid-container::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
+}
+
+/* Fix for any remaining overflow issues */
+.timesheet-content * {
+    box-sizing: border-box;
+}
+
+/* Ensure proper table cell sizing */
+.timesheet-grid th,
+.timesheet-grid td {
+    box-sizing: border-box;
+    word-wrap: break-word;
+    max-width: none;
+}
+
+/* Additional fixes for delete button and actions column */
+.timesheet-grid .actions-header,
+.timesheet-grid td:last-child {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Force table to respect column widths */
+.timesheet-grid {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Ensure all columns respect their defined widths */
+.timesheet-grid th,
+.timesheet-grid td {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Specific fix for the last column (actions) */
+.timesheet-grid .actions-header,
+.timesheet-grid td:last-child {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+}
+
+/* Specific styling for actions cell */
+.timesheet-grid .actions-cell {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    position: relative;
+}
+
+/* Ensure delete button fits within actions cell */
+.timesheet-grid .actions-cell .remove-row {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding: 4px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+    margin: 0 auto !important;
+    display: block !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+/* CRITICAL: Force actions column to exact width */
+.timesheet-grid th:last-child,
+.timesheet-grid td:last-child,
+.timesheet-grid .actions-header,
+.timesheet-grid .actions-cell {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+}
+
+/* CRITICAL: Override any Frappe button styles */
+.timesheet-grid .actions-cell .btn,
+.timesheet-grid .actions-cell .remove-row,
+.timesheet-grid .actions-cell button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding: 4px !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+    position: relative !important;
+    float: none !important;
+    clear: both !important;
+}
+
+/* CRITICAL: Override any Frappe table styles */
+.timesheet-grid {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+}
+
+/* CRITICAL: Force all table cells to respect widths */
+.timesheet-grid th,
+.timesheet-grid td {
+    box-sizing: border-box !important;
+    word-wrap: break-word !important;
+    max-width: none !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    position: relative !important;
+}
+
+/* CRITICAL: Specific column width enforcement */
+.timesheet-grid .project-header,
+.timesheet-grid .project-cell {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+}
+
+.timesheet-grid .activity-header,
+.timesheet-grid .activity-cell {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
+}
+
+/* Billable header removed - no styles needed */
+
+.timesheet-grid .day-header,
+.timesheet-grid .day-cell {
+    width: 85px !important;
+    min-width: 85px !important;
+    max-width: 85px !important;
+}
+
+.timesheet-grid .total-header,
+.timesheet-grid .task-total {
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+}
+
+.timesheet-grid .actions-header,
+.timesheet-grid .actions-cell {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+}
+
+/* CRITICAL: Override any external CSS that might interfere */
+.timesheet-grid * {
+    box-sizing: border-box !important;
+}
+
+/* CRITICAL: Ensure table container respects boundaries */
+.timesheet-grid-container {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    position: relative !important;
+}
+
+/* CRITICAL: Override any Frappe card styles */
+.timesheet-grid .card,
+.timesheet-grid .card-body {
+    overflow: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* CRITICAL: Additional table structure fixes */
+.timesheet-grid thead,
+.timesheet-grid tbody,
+.timesheet-grid tfoot {
+    display: table-row-group;
+}
+
+.timesheet-grid tr {
+    display: table-row;
+}
+
+.timesheet-grid th,
+.timesheet-grid td {
+    display: table-cell;
+}
+
+/* CRITICAL: Force table to respect exact dimensions */
+.timesheet-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* CRITICAL: Ensure no external CSS can override our table styles */
+.timesheet-grid,
+.timesheet-grid *,
+.timesheet-grid th,
+.timesheet-grid td,
+.timesheet-grid .actions-cell,
+.timesheet-grid .remove-row {
+    box-sizing: border-box !important;
+}
+
+/* CRITICAL: Override any Frappe or external button styles */
+.timesheet-grid .actions-cell .btn,
+.timesheet-grid .actions-cell .remove-row,
+.timesheet-grid .actions-cell button,
+.timesheet-grid .actions-cell .btn-xs,
+.timesheet-grid .actions-cell .btn-danger {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding: 4px !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+    position: relative !important;
+    float: none !important;
+    clear: both !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+/* CRITICAL: Override any Frappe icon styles */
+.timesheet-grid .actions-cell .fa,
+.timesheet-grid .actions-cell .fa-trash,
+.timesheet-grid .actions-cell i {
+    font-size: 11px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
+
+/* CRITICAL: Ensure actions column is exactly 35px */
+.timesheet-grid th:last-child,
+.timesheet-grid td:last-child,
+.timesheet-grid .actions-header,
+.timesheet-grid .actions-cell {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    display: table-cell !important;
+}
+
+/* CRITICAL: Override any responsive CSS that might interfere */
+@media (max-width: 1200px) {
+    .timesheet-grid .actions-cell,
+    .timesheet-grid .actions-header,
+    .timesheet-grid th:last-child,
+    .timesheet-grid td:last-child {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row,
+    .timesheet-grid .actions-cell .btn,
+    .timesheet-grid .actions-cell button {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+}
+
+@media (max-width: 992px) {
+    .timesheet-grid .actions-cell,
+    .timesheet-grid .actions-header,
+    .timesheet-grid th:last-child,
+    .timesheet-grid td:last-child {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row,
+    .timesheet-grid .actions-cell .btn,
+    .timesheet-grid .actions-cell button {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .timesheet-grid .actions-cell,
+    .timesheet-grid .actions-header,
+    .timesheet-grid th:last-child,
+    .timesheet-grid td:last-child {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row,
+    .timesheet-grid .actions-cell .btn,
+    .timesheet-grid .actions-cell button {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .timesheet-grid .actions-cell,
+    .timesheet-grid .actions-header,
+    .timesheet-grid th:last-child,
+    .timesheet-grid td:last-child {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+
+    .timesheet-grid .actions-cell .remove-row,
+    .timesheet-grid .actions-cell .btn,
+    .timesheet-grid .actions-cell button {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+        padding: 4px !important;
+        overflow: hidden !important;
+    }
+}
+
+/* ULTIMATE OVERRIDE: Force table layout */
+.timesheet-content .timesheet-grid-container .timesheet-grid {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+}
+
+/* MOST SPECIFIC OVERRIDE POSSIBLE: Force delete button to stay within bounds */
+html body .timesheet-content .timesheet-grid-container .timesheet-grid tbody tr td.actions-cell button.remove-row.btn.btn-xs.btn-danger,
+html body .timesheet-content .timesheet-grid-container .timesheet-grid tbody tr td.actions-cell button.btn.btn-xs.btn-danger.remove-row,
+html body .timesheet-content .timesheet-grid-container .timesheet-grid tbody tr td.actions-cell button.remove-row {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    padding: 4px !important;
+    margin: 0 !important;
+    display: block !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    border-radius: 3px !important;
+    position: relative !important;
+    float: none !important;
+    clear: both !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+/* MOST SPECIFIC OVERRIDE POSSIBLE: Force actions column to exact width */
+html body .timesheet-content .timesheet-grid-container .timesheet-grid tbody tr td.actions-cell,
+html body .timesheet-content .timesheet-grid-container .timesheet-grid thead tr th.actions-header,
+html body .timesheet-content .timesheet-grid-container .timesheet-grid tbody tr td:last-child,
+html body .timesheet-content .timesheet-grid-container .timesheet-grid thead tr th:last-child {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    padding: 4px !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    display: table-cell !important;
+}
+
+/* MOST SPECIFIC OVERRIDE POSSIBLE: Force table layout */
+html body .timesheet-content .timesheet-grid-container .timesheet-grid {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+}

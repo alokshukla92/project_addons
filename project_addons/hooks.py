@@ -25,7 +25,7 @@ app_license = "mit"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/project_addons/css/project_addons.css"
+app_include_css = "/assets/project_addons/css/weekly_timesheet.css"
 # app_include_js = "/assets/project_addons/js/project_addons.js"
 
 # include js, css files in header of web template
@@ -40,7 +40,7 @@ app_license = "mit"
 # webform_include_css = {"doctype": "public/css/doctype.css"}
 
 # include js in page
-# page_js = {"page" : "public/js/file.js"}
+page_js = {"weekly-timesheet" : "public/js/timesheet/weekly_timesheet.js"}
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}

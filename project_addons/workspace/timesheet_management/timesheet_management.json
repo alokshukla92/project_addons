@@ -1,0 +1,108 @@
+{
+ "category": "Modules",
+ "charts": [],
+ "creation": "2025-08-30 23:45:00.000000",
+ "developer_mode_only": 0,
+ "disable_user_customization": 0,
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "fa fa-clock-o",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Timesheet Management",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Weekly Timesheet",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Page",
+   "link_to": "weekly-timesheet",
+   "description": "Modern weekly timesheet interface similar to Keka"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Timesheet",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "DocType",
+   "link_to": "Timesheet",
+   "description": "Standard Frappe timesheet"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Activity Type",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "DocType",
+   "link_to": "Activity Type",
+   "description": "Manage activity types for timesheet entries"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Activity Cost",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "DocType",
+   "link_to": "Activity Cost",
+   "description": "Configure billing and costing rates for activities"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Daily Timesheet Summary",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Report",
+   "link_to": "Daily Timesheet Summary",
+   "description": "Daily summary of timesheet entries"
+  }
+ ],
+ "modified": "2025-08-30 23:45:00.000000",
+ "modified_by": "Administrator",
+ "module": "Project Addons",
+ "name": "Timesheet Management",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 11.0,
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "format": "",
+   "label": "Weekly Timesheet",
+   "link_to": "weekly-timesheet",
+   "stats_filter": "",
+   "type": "Page"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "format": "",
+   "label": "My Timesheets",
+   "link_to": "Timesheet",
+   "stats_filter": "{\"employee\": [\"=\", \"{{ frappe.session.user }}\"], \"docstatus\": [\"!=\", 2]}",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "New",
+   "format": "",
+   "label": "New Timesheet",
+   "link_to": "Timesheet",
+   "stats_filter": "",
+   "type": "DocType"
+  }
+ ],
+ "title": "Timesheet Management"
+}
