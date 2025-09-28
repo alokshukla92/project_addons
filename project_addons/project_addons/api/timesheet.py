@@ -17,7 +17,7 @@ def get_weekly_timesheet_data(employee=None, start_date=None):
             frappe.throw(_("No employee record found for current user"))
 
     if not start_date:
-        # Get current week start (Monday)
+        # Get current week start (Monday) - standard Frappe convention
         today = getdate()
         start_date = today - datetime.timedelta(days=today.weekday())
     else:
@@ -46,7 +46,6 @@ def get_weekly_timesheet_data(employee=None, start_date=None):
         WHERE ts.employee = %s
         AND ts.start_date >= %s
         AND ts.end_date <= %s
-        AND ts.docstatus < 2
         ORDER BY ts.creation DESC, tsd.idx, tsd.from_time
     """,
         (employee, start_date, end_date),

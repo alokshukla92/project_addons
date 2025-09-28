@@ -12,6 +12,19 @@ class WeeklyTimesheet {
         this.is_submitted = false; // Track if timesheet is submitted
         this.current_docstatus = 0; // Track docstatus (0=Draft, 1=Submitted, 2=Cancelled)
 
+        // Store references for cleanup
+        this.observers = [];
+        this.intervals = [];
+        this.event_handlers = [];
+
+        // Configuration constants
+        this.CONFIG = {
+            DROPDOWN_LIMIT: 10,
+            MONITOR_INTERVAL: 250,
+            MAX_MONITOR_COUNT: 12,
+            DEBOUNCE_DELAY: 100
+        };
+
         this.setup();
         this.setup_global_indicators();
         this.setup_page_unload_protection();
@@ -170,10 +183,207 @@ class WeeklyTimesheet {
         });
     }
 
+    // Reusable dropdown utility methods
+    async fetchData(doctype, fields, filters = {}, order_by = null) {
+        try {
+            const response = await frappe.call({
+                method: 'frappe.client.get_list',
+                args: {
+                    doctype: doctype,
+                    fields: fields,
+                    filters: filters,
+                    order_by: order_by,
+                    limit_page_length: 0
+                }
+            });
+            return response.message || [];
+        } catch (error) {
+            console.error(`Error fetching ${doctype}:`, error);
+            frappe.show_alert({
+                message: __(`Failed to load ${doctype.toLowerCase()}s. Please try again.`),
+                indicator: 'red'
+            });
+            return [];
+        }
+    }
+
+    createDropdown(identifier) {
+        const dropdown = $(`
+            <div class="${identifier}-dropdown ${identifier}-dropdown-${Math.random().toString(36).substr(2, 9)}"
+                 style="display: none; position: fixed; background: white; border: none;
+                        max-height: 200px; overflow-y: auto; z-index: 999999; border-radius: 6px;
+                        box-shadow: 0 8px 16px rgba(0,0,0,0.15); min-width: 220px;">
+            </div>
+        `);
+        $('body').append(dropdown);
+        return dropdown;
+    }
+
+    setupDropdownEvents(input, dropdown, container, renderCallback) {
+        // Search functionality
+        input.on('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            this.position_dropdown(input, dropdown);
+            renderCallback(query);
+            dropdown.show();
+        });
+
+        // Focus event
+        input.on('focus', () => {
+            $('body').find('.project-dropdown, .activity-dropdown, .employee-dropdown').not(dropdown).hide();
+            this.position_dropdown(input, dropdown);
+            renderCallback('');
+            dropdown.show();
+        });
+
+        // Click outside to close
+        $(document).on('click', (e) => {
+            if (!container.is(e.target) && container.has(e.target).length === 0 &&
+                !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
+                dropdown.hide();
+            }
+        });
+
+        // Reposition on scroll/resize
+        $(window).on('scroll resize', () => {
+            if (dropdown.is(':visible')) {
+                this.position_dropdown(input, dropdown);
+            }
+        });
+
+        // Store for cleanup
+        this.event_handlers.push({
+            element: input,
+            event: 'input focus',
+            callback: null // Complex handlers stored separately
+        });
+    }
+
+    renderDropdownItems(dropdown, items, displayField, valueField, onSelect, emptyMessage = 'No items found') {
+        dropdown.empty();
+
+        if (items.length === 0) {
+            dropdown.append(`<div style="padding: 8px; color: #999;">${emptyMessage}</div>`);
+            return;
+        }
+
+        items.slice(0, this.CONFIG.DROPDOWN_LIMIT).forEach(item => {
+            const displayValue = item[displayField] || item.name;
+            const value = item[valueField] || item.name;
+
+            const listItem = $(`
+                <div class="dropdown-item" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;"
+                     data-value="${value}">
+                    <div style="font-weight: 500; margin-bottom: 4px;">${displayValue}</div>
+                    ${item.name !== displayValue ? `<small style="color: #666;">${item.name}</small>` : ''}
+                </div>
+            `);
+
+            listItem.on('click', () => {
+                onSelect(item);
+                dropdown.hide();
+            });
+
+            listItem.on('mouseenter', function() {
+                $(this).css('background-color', '#f8f9fa');
+            });
+
+            listItem.on('mouseleave', function() {
+                $(this).css('background-color', 'white');
+            });
+
+            dropdown.append(listItem);
+        });
+
+        if (items.length > this.CONFIG.DROPDOWN_LIMIT) {
+            dropdown.append(`<div style="padding: 8px; color: #666; font-style: italic;">Showing first ${this.CONFIG.DROPDOWN_LIMIT} results</div>`);
+        }
+    }
+
+    validate_timesheet() {
+        const errors = [];
+        const warnings = [];
+        let totalWeekHours = 0;
+
+        $('#timesheet-rows tr').each((i, row) => {
+            const $row = $(row);
+            const project = $row.find('.project-value').val();
+            const activity_type = $row.find('.activity-value').val();
+
+            if (!project && !activity_type) return;
+
+            // Validate required fields
+            if (!project) {
+                errors.push(__('Project is required for all time entries'));
+                return;
+            }
+
+            if (!activity_type) {
+                errors.push(__('Activity Type is required for all time entries'));
+                return;
+            }
+
+            // Validate time entries for this row
+            let rowTotal = 0;
+            const rowHours = [];
+
+            $row.find('.time-input').each((day, input) => {
+                const hours = this.parse_time_input($(input).val());
+                if (hours > 0) {
+                    rowHours.push(hours);
+                    rowTotal += hours;
+                }
+            });
+
+            if (rowHours.length === 0) {
+                errors.push(__('At least one time entry is required for each row with Project/Activity'));
+                return;
+            }
+
+            // Check for excessive daily hours
+            rowHours.forEach((hours, day) => {
+                if (hours > 12) {
+                    warnings.push(__(`Day ${day + 1}: ${hours} hours seems excessive. Please verify.`));
+                }
+            });
+
+            totalWeekHours += rowTotal;
+        });
+
+        // Check total weekly hours
+        if (totalWeekHours > 60) {
+            warnings.push(__(`Total weekly hours (${totalWeekHours.toFixed(2)}) exceeds 60 hours. Please verify.`));
+        }
+
+        if (totalWeekHours === 0) {
+            errors.push(__('Please enter at least one time entry'));
+        }
+
+        // Return validation result
+        if (errors.length > 0) {
+            return {
+                valid: false,
+                message: `<ul><li>${errors.join('</li><li>')}</li></ul>`
+            };
+        }
+
+        if (warnings.length > 0) {
+            // Show warnings but allow save
+            frappe.msgprint({
+                title: __('Warning'),
+                message: `<ul><li>${warnings.join('</li><li>')}</li></ul>`,
+                indicator: 'orange'
+            });
+        }
+
+        return { valid: true };
+    }
+
     get_week_start(date) {
         const d = new Date(date);
         const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-        const diff = d.getDate() - day; // Always go back to Sunday
+        // Convert to Monday-based week (Frappe standard)
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday is week start
         return new Date(d.setDate(diff));
     }
 
@@ -235,6 +445,28 @@ class WeeklyTimesheet {
         let employees = [];
 
         try {
+            // First, get current user's employee record
+            let currentUserEmployee = null;
+            try {
+                const currentUserResponse = await frappe.call({
+                    method: 'frappe.client.get_value',
+                    args: {
+                        doctype: 'Employee',
+                        filters: {
+                            user_id: frappe.session.user,
+                            status: 'Active'
+                        },
+                        fieldname: ['name', 'employee_name']
+                    }
+                });
+
+                if (currentUserResponse.message) {
+                    currentUserEmployee = currentUserResponse.message;
+                }
+            } catch (userError) {
+                console.log('Current user is not linked to an employee record');
+            }
+
             // Fetch all employees
             const response = await frappe.call({
                 method: 'frappe.client.get_list',
@@ -251,6 +483,60 @@ class WeeklyTimesheet {
 
             if (response.message) {
                 employees = response.message;
+            }
+
+            // Auto-select current user's employee if found
+            if (currentUserEmployee) {
+                input.val(currentUserEmployee.employee_name);
+                hiddenInput.val(currentUserEmployee.name);
+                this.current_employee = currentUserEmployee.name;
+
+                // Auto-load timesheet data for current employee
+                this.load_data();
+
+                // Check if user has manager roles - if not, disable the employee dropdown
+                const hasManagerRole = frappe.user_roles.includes('HR Manager') ||
+                                     frappe.user_roles.includes('System Manager') ||
+                                     frappe.user_roles.includes('HR User');
+
+                if (!hasManagerRole) {
+                    // Regular employee - disable dropdown and hide it
+                    input.prop('disabled', true);
+                    input.css({
+                        'background-color': '#f8f9fa',
+                        'color': '#6c757d',
+                        'cursor': 'not-allowed'
+                    });
+
+                    // Hide the dropdown arrow or search functionality
+                    container.find('.employee-search').attr('readonly', true);
+
+                    // Add tooltip to explain why it's disabled
+                    input.attr('title', __('You can only view your own timesheet'));
+                }
+            } else {
+                // Current user is not linked to an employee record
+                const hasManagerRole = frappe.user_roles.includes('HR Manager') ||
+                                     frappe.user_roles.includes('System Manager') ||
+                                     frappe.user_roles.includes('HR User');
+
+                if (!hasManagerRole) {
+                    // Show a message that the user needs to be linked to an employee
+                    frappe.msgprint({
+                        title: __('Employee Record Required'),
+                        message: __('Your user account is not linked to an Employee record. Please contact HR to link your account.'),
+                        indicator: 'red'
+                    });
+
+                    // Disable the entire interface
+                    input.prop('disabled', true);
+                    input.val(__('No Employee Record'));
+                    input.css({
+                        'background-color': '#fff3cd',
+                        'color': '#856404',
+                        'border-color': '#ffeaa7'
+                    });
+                }
             }
 
         } catch (error) {
@@ -368,12 +654,33 @@ class WeeklyTimesheet {
 
                     // Update status based on existing timesheet data
                     if (r.message.timesheets && r.message.timesheets.length > 0) {
-                        // Use the first timesheet (latest modified)
-                        const latestTimesheet = r.message.timesheets[0];
-                        this.current_docstatus = latestTimesheet.docstatus || 0;
+                        // Find the most relevant timesheet for this week
+                        // Priority: Draft > Submitted > Cancelled
+                        const timesheetsByStatus = r.message.timesheets.reduce((acc, ts) => {
+                            acc[ts.docstatus] = acc[ts.docstatus] || [];
+                            acc[ts.docstatus].push(ts);
+                            return acc;
+                        }, {});
+
+                        let currentTimesheet;
+                        if (timesheetsByStatus[0] && timesheetsByStatus[0].length > 0) {
+                            // Draft timesheet exists
+                            currentTimesheet = timesheetsByStatus[0][0];
+                        } else if (timesheetsByStatus[1] && timesheetsByStatus[1].length > 0) {
+                            // Submitted timesheet exists
+                            currentTimesheet = timesheetsByStatus[1][0];
+                        } else if (timesheetsByStatus[2] && timesheetsByStatus[2].length > 0) {
+                            // Only cancelled timesheet exists
+                            currentTimesheet = timesheetsByStatus[2][0];
+                        } else {
+                            // Use the first one as fallback
+                            currentTimesheet = r.message.timesheets[0];
+                        }
+
+                        this.current_docstatus = currentTimesheet.docstatus || 0;
                         this.is_submitted = this.current_docstatus === 1;
-                        this.update_status_indicator(latestTimesheet.status, latestTimesheet.docstatus);
-                        this.update_timesheet_id_display(latestTimesheet.name);
+                        this.update_status_indicator(currentTimesheet.status, currentTimesheet.docstatus);
+                        this.update_timesheet_id_display(currentTimesheet.name);
                         this.update_ui_for_submission_status();
                     } else {
                         // No existing timesheet, reset to draft state
@@ -499,13 +806,13 @@ class WeeklyTimesheet {
                                         <tr>
                                             <th class="text-center project-header" style="width: 200px; min-width: 200px; max-width: 200px">${__('Project')}</th>
                                             <th class="text-center activity-header" style="width: 200px; min-width: 200px; max-width: 200px">${__('Activity Type')}</th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Sun')}<br><small>${this.get_day_date(0)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Mon')}<br><small>${this.get_day_date(1)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Tue')}<br><small>${this.get_day_date(2)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Wed')}<br><small>${this.get_day_date(3)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Thu')}<br><small>${this.get_day_date(4)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Fri')}<br><small>${this.get_day_date(5)}</small></th>
-                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Sat')}<br><small>${this.get_day_date(6)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Mon')}<br><small>${this.get_day_date(0)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Tue')}<br><small>${this.get_day_date(1)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Wed')}<br><small>${this.get_day_date(2)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Thu')}<br><small>${this.get_day_date(3)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Fri')}<br><small>${this.get_day_date(4)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Sat')}<br><small>${this.get_day_date(5)}</small></th>
+                                            <th class="text-center day-header" style="width: 85px; min-width: 85px; max-width: 85px">${__('Sun')}<br><small>${this.get_day_date(6)}</small></th>
                                             <th class="text-center total-header" style="width: 90px; min-width: 90px; max-width: 90px">${__('Total')}<br><small>${__('HRS/WEEK')}</small></th>
                                             <th class="text-center actions-header" style="width: 35px !important; min-width: 35px !important; max-width: 35px !important; padding: 4px !important; overflow: hidden !important;"></th>
                                         </tr>
@@ -677,6 +984,13 @@ class WeeklyTimesheet {
         const order = [];
 
         this.timesheet_data.timesheets.forEach((entry, index) => {
+            // Skip cancelled timesheet entries for hour calculations
+            // but allow them for determining timesheet state
+            if (entry.docstatus === 2) {
+                // This is a cancelled timesheet entry - don't include in calculations
+                return;
+            }
+
             const key = `${entry.project || ''}-${entry.task || ''}-${entry.activity_type || ''}`;
 
             if (!grouped[key]) {
@@ -1222,17 +1536,86 @@ class WeeklyTimesheet {
         // Convert to string and trim whitespace
         value = String(value).trim();
 
+        // Validation checks
+        if (value.length > 10) {
+            frappe.show_alert({
+                message: __('Time input too long. Please enter a valid time.'),
+                indicator: 'red'
+            });
+            return 0;
+        }
+
         // Handle formats like 1:30, 1.5, etc.
         if (value.includes(':')) {
-            const [hours, minutes] = value.split(':');
-            const h = parseFloat(hours) || 0;
-            const m = parseFloat(minutes) || 0;
+            const parts = value.split(':');
+            if (parts.length > 2) {
+                frappe.show_alert({
+                    message: __('Invalid time format. Use HH:MM or decimal hours.'),
+                    indicator: 'red'
+                });
+                return 0;
+            }
+
+            const h = parseFloat(parts[0]) || 0;
+            const m = parseFloat(parts[1]) || 0;
+
+            // Validation
+            if (h < 0 || h > 24) {
+                frappe.show_alert({
+                    message: __('Hours must be between 0 and 24.'),
+                    indicator: 'red'
+                });
+                return 0;
+            }
+
+            if (m < 0 || m >= 60) {
+                frappe.show_alert({
+                    message: __('Minutes must be between 0 and 59.'),
+                    indicator: 'red'
+                });
+                return 0;
+            }
+
+            const totalHours = h + m / 60;
+            if (totalHours > 24) {
+                frappe.show_alert({
+                    message: __('Total time cannot exceed 24 hours per day.'),
+                    indicator: 'red'
+                });
+                return 0;
+            }
+
             // Round to 2 decimal places to avoid floating point precision issues
-            return Math.round((h + m / 60) * 100) / 100;
+            return Math.round(totalHours * 100) / 100;
         }
 
         // Handle decimal format like 4.5
-        const decimalValue = parseFloat(value) || 0;
+        const decimalValue = parseFloat(value);
+
+        if (isNaN(decimalValue)) {
+            frappe.show_alert({
+                message: __('Please enter a valid number for time.'),
+                indicator: 'red'
+            });
+            return 0;
+        }
+
+        if (decimalValue < 0) {
+            frappe.show_alert({
+                message: __('Time cannot be negative.'),
+                indicator: 'red'
+            });
+            return 0;
+        }
+
+        if (decimalValue > 24) {
+            frappe.show_alert({
+                message: __('Time cannot exceed 24 hours per day.'),
+                indicator: 'red'
+            });
+            return 0;
+        }
+
         // Round to 2 decimal places to avoid floating point precision issues
         return Math.round(decimalValue * 100) / 100;
     }
@@ -1327,6 +1710,17 @@ class WeeklyTimesheet {
     }
 
     save_timesheet() {
+        // Validate timesheet before saving
+        const validation_result = this.validate_timesheet();
+        if (!validation_result.valid) {
+            frappe.msgprint({
+                title: __('Validation Error'),
+                message: validation_result.message,
+                indicator: 'red'
+            });
+            return;
+        }
+
         const time_logs = this.collect_time_entries();
 
         if (time_logs.length === 0) {
@@ -1498,13 +1892,13 @@ class WeeklyTimesheet {
                             <tr>
                                 <th>${__('Project')}</th>
                                 <th>${__('Activity Type')}</th>
-                                <th>${__('Sun')}</th>
                                 <th>${__('Mon')}</th>
                                 <th>${__('Tue')}</th>
                                 <th>${__('Wed')}</th>
                                 <th>${__('Thu')}</th>
                                 <th>${__('Fri')}</th>
                                 <th>${__('Sat')}</th>
+                                <th>${__('Sun')}</th>
                                 <th>${__('Total')}</th>
                             </tr>
                         </thead>
@@ -1736,6 +2130,33 @@ class WeeklyTimesheet {
     cleanup() {
         // Clean up when page is destroyed
         this.has_unsaved_changes = false;
+
+        // Clean up observers
+        this.observers.forEach(observer => {
+            if (observer && observer.disconnect) {
+                observer.disconnect();
+            }
+        });
+        this.observers = [];
+
+        // Clean up intervals
+        this.intervals.forEach(interval => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        });
+        this.intervals = [];
+
+        // Clean up event handlers
+        this.event_handlers.forEach(handler => {
+            if (handler && handler.element && handler.event && handler.callback) {
+                handler.element.off(handler.event, handler.callback);
+            }
+        });
+        this.event_handlers = [];
+
+        // Clean up dropdowns
+        $('body').find('.project-dropdown, .activity-dropdown, .employee-dropdown').remove();
     }
 
     update_ui_for_submission_status() {
@@ -1952,9 +2373,39 @@ class WeeklyTimesheet {
     }
 
     setup_dimension_monitoring() {
-        // Monitor and fix dimensions every 100ms for the first 5 seconds
+        // Use modern ResizeObserver API when available
+        if ('ResizeObserver' in window) {
+            const resizeObserver = new ResizeObserver(() => {
+                this.force_all_actions_column_dimensions();
+            });
+
+            // Observe the main table container
+            const tableContainer = document.querySelector('.timesheet-grid-container');
+            if (tableContainer) {
+                resizeObserver.observe(tableContainer);
+                this.observers.push(resizeObserver);
+            }
+        }
+
+        // Throttled window resize handler for older browsers
+        let resizeTimeout;
+        const resizeHandler = () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.force_all_actions_column_dimensions();
+            }, 250); // Reduced frequency from 100ms to 250ms
+        };
+
+        $(window).on('resize', resizeHandler);
+        this.event_handlers.push({
+            element: $(window),
+            event: 'resize',
+            callback: resizeHandler
+        });
+
+        // Reduced frequency monitoring for initial setup
         let monitorCount = 0;
-        const maxMonitors = 50; // 5 seconds at 100ms intervals
+        const maxMonitors = 12; // 3 seconds at 250ms intervals (reduced from 5s at 100ms)
 
         const dimensionMonitor = setInterval(() => {
             this.force_all_actions_column_dimensions();
@@ -1963,24 +2414,27 @@ class WeeklyTimesheet {
             if (monitorCount >= maxMonitors) {
                 clearInterval(dimensionMonitor);
             }
-        }, 100);
+        }, 250); // Reduced from 100ms to 250ms
 
-        // Also monitor on window resize
-        $(window).on('resize', () => {
-            this.force_all_actions_column_dimensions();
+        this.intervals.push(dimensionMonitor);
+
+        // Optimized mutation observer with debouncing
+        let mutationTimeout;
+        const mutationObserver = new MutationObserver(() => {
+            clearTimeout(mutationTimeout);
+            mutationTimeout = setTimeout(() => {
+                this.force_all_actions_column_dimensions();
+            }, 100);
         });
 
-        // Monitor on any DOM changes
-        const observer = new MutationObserver(() => {
-            this.force_all_actions_column_dimensions();
-        });
-
-        observer.observe(document.body, {
+        mutationObserver.observe(document.querySelector('.timesheet-grid-container') || document.body, {
             childList: true,
             subtree: true,
             attributes: true,
             attributeFilter: ['style', 'class']
         });
+
+        this.observers.push(mutationObserver);
     }
 
     force_all_actions_column_dimensions() {
