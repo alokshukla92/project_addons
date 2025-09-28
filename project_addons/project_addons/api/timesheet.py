@@ -28,7 +28,7 @@ def get_weekly_timesheet_data(employee=None, start_date=None):
     # Get employee details
     employee_doc = frappe.get_doc("Employee", employee)
 
-    # Get existing timesheets for the week
+    # Get existing timesheets for the week (exclude cancelled timesheets)
     timesheets = frappe.db.sql(
         """
         SELECT ts.name, ts.start_date, ts.end_date, ts.total_hours,
@@ -46,11 +46,13 @@ def get_weekly_timesheet_data(employee=None, start_date=None):
         WHERE ts.employee = %s
         AND ts.start_date >= %s
         AND ts.end_date <= %s
-        ORDER BY ts.modified DESC, ts.start_date, tsd.from_time
+        AND ts.docstatus < 2
+        ORDER BY ts.creation DESC, tsd.idx, tsd.from_time
     """,
         (employee, start_date, end_date),
         as_dict=True,
     )
+
 
     # Get projects accessible to employee
     projects = frappe.db.sql(

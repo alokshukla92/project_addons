@@ -183,6 +183,13 @@ class WeeklyTimesheet {
         return d.toISOString().split('T')[0];
     }
 
+    format_display_date(date) {
+        // Format date for display (e.g., "21 Sept 2025")
+        const d = new Date(date);
+        const options = { day: 'numeric', month: 'short', year: 'numeric' };
+        return d.toLocaleDateString('en-GB', options);
+    }
+
     navigate_week(direction) {
         // direction: -1 for previous week, 1 for next week
         const current_date = new Date($('#week-start-date').val());
@@ -205,7 +212,9 @@ class WeeklyTimesheet {
 
     add_hours_to_date(date, hours) {
         const d = new Date(date);
-        d.setHours(d.getHours() + hours);
+        // Convert hours to milliseconds and add to the date
+        // This properly handles decimal hours like 5.5
+        d.setTime(d.getTime() + (hours * 60 * 60 * 1000));
         return d;
     }
 
@@ -406,9 +415,9 @@ class WeeklyTimesheet {
                         <div class="card-header">
                             <h5>${__('Week Summary')} - ${this.current_employee.employee_name}</h5>
                             <small class="text-muted">
-                                ${frappe.format(this.timesheet_data.date_range.start_date, 'Date')}
+                                ${this.format_display_date(this.timesheet_data.date_range.start_date)}
                                 to
-                                ${frappe.format(this.timesheet_data.date_range.end_date, 'Date')}
+                                ${this.format_display_date(this.timesheet_data.date_range.end_date)}
                             </small>
                         </div>
                         <div class="card-body">
@@ -639,7 +648,7 @@ class WeeklyTimesheet {
     populate_grid() {
         const tbody = $('#timesheet-rows');
         tbody.empty();
-        
+
         // Clean up any existing dropdowns from previous render
         $('body').find('.project-dropdown, .activity-dropdown').remove();
 
@@ -665,8 +674,9 @@ class WeeklyTimesheet {
 
     group_timesheet_entries() {
         const grouped = {};
+        const order = [];
 
-        this.timesheet_data.timesheets.forEach(entry => {
+        this.timesheet_data.timesheets.forEach((entry, index) => {
             const key = `${entry.project || ''}-${entry.task || ''}-${entry.activity_type || ''}`;
 
             if (!grouped[key]) {
@@ -680,8 +690,10 @@ class WeeklyTimesheet {
                     is_billable: entry.is_billable,
                     description: entry.description || '',
                     daily_hours: [0, 0, 0, 0, 0, 0, 0],
-                    notes: ['', '', '', '', '', '', '']
+                    notes: ['', '', '', '', '', '', ''],
+                    order_index: index // Preserve original order
                 };
+                order.push(key);
             }
 
             // Calculate which day of week this entry belongs to
@@ -697,7 +709,13 @@ class WeeklyTimesheet {
             }
         });
 
-        return grouped;
+        // Sort grouped entries by order_index to maintain original order
+        const sortedGrouped = {};
+        order.forEach(key => {
+            sortedGrouped[key] = grouped[key];
+        });
+
+        return sortedGrouped;
     }
 
     add_task_row(task_data = null) {
@@ -765,7 +783,7 @@ class WeeklyTimesheet {
             <div class="project-dropdown project-dropdown-${row_id}" style="display: none; position: fixed; background: white; border: none; max-height: 200px; overflow-y: auto; z-index: 999999; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); min-width: 220px;">
             </div>
         `);
-        
+
         $('body').append(dropdown);
 
         project_cell.append(container);
@@ -802,7 +820,7 @@ class WeeklyTimesheet {
         input.on('input', (e) => {
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
-            
+
             const query = e.target.value.toLowerCase();
             const filtered = projects.filter(project =>
                 project.project_name.toLowerCase().includes(query) ||
@@ -818,7 +836,7 @@ class WeeklyTimesheet {
         input.on('focus', () => {
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').hide();
-            
+
             this.position_dropdown(input, dropdown);
             this.render_project_dropdown(dropdown, projects, input, hiddenInput, row_id);
             dropdown.show();
@@ -826,7 +844,7 @@ class WeeklyTimesheet {
 
         // Click outside to close
         $(document).on('click', (e) => {
-            if (!container.is(e.target) && container.has(e.target).length === 0 && 
+            if (!container.is(e.target) && container.has(e.target).length === 0 &&
                 !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
                 dropdown.hide();
             }
@@ -895,13 +913,13 @@ class WeeklyTimesheet {
         const inputWidth = input.outerWidth();
         const windowHeight = $(window).height();
         const dropdownHeight = 200; // max-height of dropdown
-        
+
         // Calculate available space below and above
         const spaceBelow = windowHeight - (inputOffset.top + inputHeight);
         const spaceAbove = inputOffset.top;
-        
+
         let top, dropDirection;
-        
+
         // If there's enough space below, position dropdown below
         if (spaceBelow >= dropdownHeight + 10) {
             top = inputOffset.top + inputHeight;
@@ -924,8 +942,8 @@ class WeeklyTimesheet {
             'left': inputOffset.left + 'px',
             'width': Math.max(inputWidth, 220) + 'px',
             'position': 'fixed',
-            'max-height': dropDirection === 'up' ? Math.min(dropdownHeight, spaceAbove - 10) + 'px' : 
-                         dropDirection === 'down' && spaceBelow < dropdownHeight ? (spaceBelow - 10) + 'px' : 
+            'max-height': dropDirection === 'up' ? Math.min(dropdownHeight, spaceAbove - 10) + 'px' :
+                         dropDirection === 'down' && spaceBelow < dropdownHeight ? (spaceBelow - 10) + 'px' :
                          dropdownHeight + 'px'
         });
     }
@@ -950,7 +968,7 @@ class WeeklyTimesheet {
             <div class="activity-dropdown activity-dropdown-${row_id}" style="display: none; position: fixed; background: white; border: none; max-height: 200px; overflow-y: auto; z-index: 999999; border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); min-width: 220px;">
             </div>
         `);
-        
+
         $('body').append(dropdown);
 
         activity_cell.append(container);
@@ -987,7 +1005,7 @@ class WeeklyTimesheet {
         input.on('input', (e) => {
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
-            
+
             const query = e.target.value.toLowerCase();
             const filtered = activities.filter(activity =>
                 activity.name.toLowerCase().includes(query)
@@ -1002,7 +1020,7 @@ class WeeklyTimesheet {
         input.on('focus', () => {
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').hide();
-            
+
             this.position_dropdown(input, dropdown);
             this.render_activity_dropdown(dropdown, activities, input, hiddenInput, row_id);
             dropdown.show();
@@ -1010,7 +1028,7 @@ class WeeklyTimesheet {
 
         // Click outside to close
         $(document).on('click', (e) => {
-            if (!container.is(e.target) && container.has(e.target).length === 0 && 
+            if (!container.is(e.target) && container.has(e.target).length === 0 &&
                 !dropdown.is(e.target) && dropdown.has(e.target).length === 0) {
                 dropdown.hide();
             }
@@ -1201,20 +1219,38 @@ class WeeklyTimesheet {
     parse_time_input(value) {
         if (!value) return 0;
 
-        // Handle formats like 1:30, 1.5, 90m, etc.
+        // Convert to string and trim whitespace
+        value = String(value).trim();
+
+        // Handle formats like 1:30, 1.5, etc.
         if (value.includes(':')) {
             const [hours, minutes] = value.split(':');
-            return parseFloat(hours) + parseFloat(minutes || 0) / 60;
+            const h = parseFloat(hours) || 0;
+            const m = parseFloat(minutes) || 0;
+            // Round to 2 decimal places to avoid floating point precision issues
+            return Math.round((h + m / 60) * 100) / 100;
         }
 
-        return parseFloat(value) || 0;
+        // Handle decimal format like 4.5
+        const decimalValue = parseFloat(value) || 0;
+        // Round to 2 decimal places to avoid floating point precision issues
+        return Math.round(decimalValue * 100) / 100;
     }
 
     format_hours(hours) {
-        if (!hours) return '0:00';
+        if (!hours || hours === 0) return '0:00';
+
+        // Round to 2 decimal places first to avoid floating point precision issues
+        hours = Math.round(hours * 100) / 100;
 
         const h = Math.floor(hours);
         const m = Math.round((hours - h) * 60);
+
+        // Handle edge case where rounding minutes results in 60
+        if (m === 60) {
+            return `${h + 1}:00`;
+        }
+
         return `${h}:${m.toString().padStart(2, '0')}`;
     }
 
@@ -1429,8 +1465,8 @@ class WeeklyTimesheet {
                 frappe.msgprint({
                     title: __('No Data Found'),
                     message: __('No timesheet data found for the previous week ({0} to {1})', [
-                        frappe.format(previous_week_start, 'Date'),
-                        frappe.format(new Date(previous_week_start.getTime() + 6 * 24 * 60 * 60 * 1000), 'Date')
+                        this.format_display_date(previous_week_start),
+                        this.format_display_date(new Date(previous_week_start.getTime() + 6 * 24 * 60 * 60 * 1000))
                     ]),
                     indicator: 'orange'
                 });
@@ -1455,7 +1491,7 @@ class WeeklyTimesheet {
         let preview_html = `
             <div class="timesheet-preview">
                 <h6>${__('Timesheet Preview for Previous Week')}</h6>
-                <p class="text-muted">${frappe.format(previous_week_start, 'Date')} to ${frappe.format(previous_week_end, 'Date')}</p>
+                <p class="text-muted">${this.format_display_date(previous_week_start)} to ${this.format_display_date(previous_week_end)}</p>
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm">
                         <thead>
@@ -1588,6 +1624,9 @@ class WeeklyTimesheet {
 
         // Force dimensions for all rows after grid is populated
         this.force_all_actions_column_dimensions();
+
+        // Mark as changed to show unsaved changes indicator
+        this.mark_as_changed();
 
         // Show success message
         frappe.show_alert({
