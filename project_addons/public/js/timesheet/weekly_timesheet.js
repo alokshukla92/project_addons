@@ -19,7 +19,6 @@ class WeeklyTimesheet {
 
         // Configuration constants
         this.CONFIG = {
-            DROPDOWN_LIMIT: 10,
             MONITOR_INTERVAL: 250,
             MAX_MONITOR_COUNT: 12,
             DEBOUNCE_DELAY: 100
@@ -125,7 +124,7 @@ class WeeklyTimesheet {
     }
 
     setup_global_indicators() {
-        // Add CSS styles for read-only timesheet
+        // Add CSS styles for read-only timesheet and mobile dropdowns
         const style = $(`
             <style>
                 .readonly-timesheet {
@@ -155,6 +154,153 @@ class WeeklyTimesheet {
                     border-color: #dee2e6 !important;
                     color: #6c757d !important;
                 }
+
+                /* Mobile dropdown modal styles */
+                .mobile-dropdown-modal {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: white;
+                    z-index: 9999999;
+                    flex-direction: column;
+                }
+
+                .mobile-dropdown-modal.active {
+                    display: flex;
+                }
+
+                .mobile-dropdown-header {
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border-bottom: 1px solid #dee2e6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .mobile-dropdown-header h5 {
+                    margin: 0;
+                    font-size: 16px;
+                    font-weight: 500;
+                }
+
+                .mobile-dropdown-close {
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    padding: 0;
+                    width: 30px;
+                    height: 30px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .mobile-dropdown-search {
+                    padding: 15px;
+                    border-bottom: 1px solid #dee2e6;
+                }
+
+                .mobile-dropdown-search input {
+                    width: 100%;
+                    padding: 10px;
+                    border: 1px solid #dee2e6;
+                    border-radius: 4px;
+                    font-size: 16px;
+                }
+
+                .mobile-dropdown-list {
+                    flex: 1;
+                    overflow-y: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+
+                .mobile-dropdown-item {
+                    padding: 15px;
+                    border-bottom: 1px solid #f0f0f0;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .mobile-dropdown-item:active {
+                    background-color: #f8f9fa;
+                }
+
+                .mobile-dropdown-item-title {
+                    font-weight: 500;
+                    margin-bottom: 4px;
+                    font-size: 15px;
+                }
+
+                .mobile-dropdown-item-subtitle {
+                    color: #666;
+                    font-size: 13px;
+                }
+
+                .mobile-dropdown-empty {
+                    padding: 20px;
+                    text-align: center;
+                    color: #999;
+                }
+
+                /* Mobile description modal styles */
+                @media (max-width: 768px) {
+                    .description-popover {
+                        position: fixed !important;
+                        top: 20px !important;
+                        left: 10px !important;
+                        right: 10px !important;
+                        bottom: auto !important;
+                        min-width: unset !important;
+                        max-width: unset !important;
+                        width: auto !important;
+                        height: auto !important;
+                        border-radius: 8px !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        z-index: 9999999 !important;
+                        max-height: 60vh !important;
+                    }
+
+                    .description-popover .description-header {
+                        padding: 12px 15px;
+                        background: #f8f9fa;
+                        border-bottom: 1px solid #dee2e6;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        flex-shrink: 0;
+                        border-radius: 8px 8px 0 0;
+                    }
+
+                    .description-popover .description-body {
+                        padding: 15px;
+                        overflow-y: auto;
+                        display: flex;
+                        flex-direction: column;
+                        flex: 1;
+                        min-height: 120px;
+                    }
+
+                    .description-popover .description-textarea {
+                        min-height: 100px !important;
+                        font-size: 16px !important;
+                        flex: 1;
+                    }
+
+                    .description-popover .description-footer {
+                        padding: 12px 15px;
+                        border-top: 1px solid #dee2e6;
+                        background: #f8f9fa;
+                        flex-shrink: 0;
+                        border-radius: 0 0 8px 8px;
+                    }
+                }
             </style>
         `);
 
@@ -180,6 +326,68 @@ class WeeklyTimesheet {
                     return false;
                 }
             }
+        });
+    }
+
+    // Mobile detection utility
+    isMobileView() {
+        return window.innerWidth <= 768;
+    }
+
+    // Create mobile dropdown modal
+    createMobileDropdownModal(title) {
+        const modal = $(`
+            <div class="mobile-dropdown-modal">
+                <div class="mobile-dropdown-header">
+                    <h5>${title}</h5>
+                    <button class="mobile-dropdown-close">&times;</button>
+                </div>
+                <div class="mobile-dropdown-search">
+                    <input type="text" class="mobile-search-input" placeholder="${__('Search...')}">
+                </div>
+                <div class="mobile-dropdown-list"></div>
+            </div>
+        `);
+
+        $('body').append(modal);
+
+        // Close button handler
+        modal.find('.mobile-dropdown-close').on('click', () => {
+            modal.removeClass('active');
+            setTimeout(() => modal.remove(), 300);
+        });
+
+        return modal;
+    }
+
+    // Render items in mobile modal
+    renderMobileDropdownItems(modal, items, displayField, valueField, onSelect) {
+        const listContainer = modal.find('.mobile-dropdown-list');
+        listContainer.empty();
+
+        if (items.length === 0) {
+            listContainer.append('<div class="mobile-dropdown-empty">No items found</div>');
+            return;
+        }
+
+        items.forEach(item => {
+            const displayValue = item[displayField] || item.name;
+            const value = item[valueField] || item.name;
+
+            const itemEl = $(`
+                <div class="mobile-dropdown-item" data-value="${value}">
+                    <div class="mobile-dropdown-item-title">${displayValue}</div>
+                    ${item.name !== displayValue ? `<div class="mobile-dropdown-item-subtitle">${item.name}</div>` : ''}
+                </div>
+            `);
+
+            itemEl.on('click', () => {
+                onSelect(item);
+                modal.removeClass('active');
+                setTimeout(() => modal.remove(), 300);
+            });
+
+            listContainer.append(itemEl);
         });
     }
 
@@ -267,7 +475,7 @@ class WeeklyTimesheet {
             return;
         }
 
-        items.slice(0, this.CONFIG.DROPDOWN_LIMIT).forEach(item => {
+        items.forEach(item => {
             const displayValue = item[displayField] || item.name;
             const value = item[valueField] || item.name;
 
@@ -294,10 +502,6 @@ class WeeklyTimesheet {
 
             dropdown.append(listItem);
         });
-
-        if (items.length > this.CONFIG.DROPDOWN_LIMIT) {
-            dropdown.append(`<div style="padding: 8px; color: #666; font-style: italic;">Showing first ${this.CONFIG.DROPDOWN_LIMIT} results</div>`);
-        }
     }
 
     validate_timesheet() {
@@ -546,14 +750,19 @@ class WeeklyTimesheet {
 
         // Search functionality
         input.on('input', (e) => {
-            // Hide any other open dropdowns first
-            $('body').find('.project-dropdown, .activity-dropdown, .employee-dropdown').not(dropdown).hide();
-
             const query = e.target.value.toLowerCase();
             const filtered = employees.filter(employee =>
                 employee.employee_name.toLowerCase().includes(query) ||
                 employee.name.toLowerCase().includes(query)
             );
+
+            if (this.isMobileView()) {
+                // Don't show dropdown on input in mobile - wait for focus/click
+                return;
+            }
+
+            // Hide any other open dropdowns first
+            $('body').find('.project-dropdown, .activity-dropdown, .employee-dropdown').not(dropdown).hide();
 
             this.position_dropdown(input, dropdown);
             this.render_employee_dropdown(dropdown, filtered, input, hiddenInput);
@@ -562,6 +771,38 @@ class WeeklyTimesheet {
 
         // Focus event
         input.on('focus', () => {
+            if (this.isMobileView()) {
+                // Show mobile modal
+                input.blur(); // Remove focus to prevent keyboard from showing
+                const modal = this.createMobileDropdownModal(__('Select Employee'));
+
+                // Setup search in modal
+                const searchInput = modal.find('.mobile-search-input');
+                searchInput.on('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    const filtered = employees.filter(employee =>
+                        employee.employee_name.toLowerCase().includes(query) ||
+                        employee.name.toLowerCase().includes(query)
+                    );
+                    this.renderMobileDropdownItems(modal, filtered, 'employee_name', 'name', (employee) => {
+                        input.val(employee.employee_name);
+                        hiddenInput.val(employee.name);
+                        this.load_data();
+                    });
+                });
+
+                // Initial render
+                this.renderMobileDropdownItems(modal, employees, 'employee_name', 'name', (employee) => {
+                    input.val(employee.employee_name);
+                    hiddenInput.val(employee.name);
+                    this.load_data();
+                });
+
+                modal.addClass('active');
+                setTimeout(() => searchInput.focus(), 100);
+                return;
+            }
+
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown, .employee-dropdown').hide();
 
@@ -594,7 +835,7 @@ class WeeklyTimesheet {
             return;
         }
 
-        employees.slice(0, 10).forEach(employee => {
+        employees.forEach(employee => {
             const item = $(`
                 <div class="dropdown-item" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;"
                      data-value="${employee.name}">
@@ -620,10 +861,6 @@ class WeeklyTimesheet {
 
             dropdown.append(item);
         });
-
-        if (employees.length > 10) {
-            dropdown.append(`<div style="padding: 8px; color: #666; font-style: italic;">Showing first 10 results</div>`);
-        }
     }
 
     async load_data() {
@@ -929,7 +1166,17 @@ class WeeklyTimesheet {
     }
 
     get_day_date(day_offset) {
-        const start_date = new Date(this.timesheet_data.date_range.start_date);
+        // Get the week start date from the date picker
+        const week_start_str = $('#week-start-date').val();
+        if (!week_start_str) {
+            // Fallback to current week start if date picker not initialized
+            const today = new Date();
+            const start_date = this.get_week_start(today);
+            start_date.setDate(start_date.getDate() + day_offset);
+            return start_date.getDate();
+        }
+
+        const start_date = new Date(week_start_str);
         const day_date = new Date(start_date);
         day_date.setDate(start_date.getDate() + day_offset);
         return day_date.getDate();
@@ -1005,6 +1252,7 @@ class WeeklyTimesheet {
                     description: entry.description || '',
                     daily_hours: [0, 0, 0, 0, 0, 0, 0],
                     notes: ['', '', '', '', '', '', ''],
+                    billable: [0, 0, 0, 0, 0, 0, 0],
                     order_index: index // Preserve original order
                 };
                 order.push(key);
@@ -1020,6 +1268,7 @@ class WeeklyTimesheet {
                 if (entry.description) {
                     grouped[key].notes[day_diff] = entry.description;
                 }
+                grouped[key].billable[day_diff] = entry.is_billable || 0;
             }
         });
 
@@ -1132,14 +1381,19 @@ class WeeklyTimesheet {
 
         // Search functionality
         input.on('input', (e) => {
-            // Hide any other open dropdowns first
-            $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
-
             const query = e.target.value.toLowerCase();
             const filtered = projects.filter(project =>
                 project.project_name.toLowerCase().includes(query) ||
                 project.name.toLowerCase().includes(query)
             );
+
+            if (this.isMobileView()) {
+                // Don't show dropdown on input in mobile - wait for focus/click
+                return;
+            }
+
+            // Hide any other open dropdowns first
+            $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
 
             this.position_dropdown(input, dropdown);
             this.render_project_dropdown(dropdown, filtered, input, hiddenInput, row_id);
@@ -1148,6 +1402,38 @@ class WeeklyTimesheet {
 
         // Focus event
         input.on('focus', () => {
+            if (this.isMobileView()) {
+                // Show mobile modal
+                input.blur(); // Remove focus to prevent keyboard from showing
+                const modal = this.createMobileDropdownModal(__('Select Project'));
+
+                // Setup search in modal
+                const searchInput = modal.find('.mobile-search-input');
+                searchInput.on('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    const filtered = projects.filter(project =>
+                        project.project_name.toLowerCase().includes(query) ||
+                        project.name.toLowerCase().includes(query)
+                    );
+                    this.renderMobileDropdownItems(modal, filtered, 'project_name', 'name', (project) => {
+                        input.val(project.project_name);
+                        hiddenInput.val(project.name);
+                        this.handle_project_selection(row_id, project.name);
+                    });
+                });
+
+                // Initial render
+                this.renderMobileDropdownItems(modal, projects, 'project_name', 'name', (project) => {
+                    input.val(project.project_name);
+                    hiddenInput.val(project.name);
+                    this.handle_project_selection(row_id, project.name);
+                });
+
+                modal.addClass('active');
+                setTimeout(() => searchInput.focus(), 100);
+                return;
+            }
+
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').hide();
 
@@ -1189,7 +1475,7 @@ class WeeklyTimesheet {
             return;
         }
 
-        projects.slice(0, 10).forEach(project => {
+        projects.forEach(project => {
             const item = $(`
                 <div class="dropdown-item" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;"
                      data-value="${project.name}">
@@ -1215,10 +1501,6 @@ class WeeklyTimesheet {
 
             dropdown.append(item);
         });
-
-        if (projects.length > 10) {
-            dropdown.append(`<div style="padding: 8px; color: #666; font-style: italic;">Showing first 10 results</div>`);
-        }
     }
 
             position_dropdown(input, dropdown) {
@@ -1317,13 +1599,18 @@ class WeeklyTimesheet {
 
         // Search functionality
         input.on('input', (e) => {
-            // Hide any other open dropdowns first
-            $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
-
             const query = e.target.value.toLowerCase();
             const filtered = activities.filter(activity =>
                 activity.name.toLowerCase().includes(query)
             );
+
+            if (this.isMobileView()) {
+                // Don't show dropdown on input in mobile - wait for focus/click
+                return;
+            }
+
+            // Hide any other open dropdowns first
+            $('body').find('.project-dropdown, .activity-dropdown').not(dropdown).hide();
 
             this.position_dropdown(input, dropdown);
             this.render_activity_dropdown(dropdown, filtered, input, hiddenInput, row_id);
@@ -1332,6 +1619,37 @@ class WeeklyTimesheet {
 
         // Focus event
         input.on('focus', () => {
+            if (this.isMobileView()) {
+                // Show mobile modal
+                input.blur(); // Remove focus to prevent keyboard from showing
+                const modal = this.createMobileDropdownModal(__('Select Activity Type'));
+
+                // Setup search in modal
+                const searchInput = modal.find('.mobile-search-input');
+                searchInput.on('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    const filtered = activities.filter(activity =>
+                        activity.name.toLowerCase().includes(query)
+                    );
+                    this.renderMobileDropdownItems(modal, filtered, 'name', 'name', (activity) => {
+                        input.val(activity.name);
+                        hiddenInput.val(activity.name);
+                        this.handle_activity_selection(row_id, activity.name);
+                    });
+                });
+
+                // Initial render
+                this.renderMobileDropdownItems(modal, activities, 'name', 'name', (activity) => {
+                    input.val(activity.name);
+                    hiddenInput.val(activity.name);
+                    this.handle_activity_selection(row_id, activity.name);
+                });
+
+                modal.addClass('active');
+                setTimeout(() => searchInput.focus(), 100);
+                return;
+            }
+
             // Hide any other open dropdowns first
             $('body').find('.project-dropdown, .activity-dropdown').hide();
 
@@ -1373,7 +1691,7 @@ class WeeklyTimesheet {
             return;
         }
 
-        activities.slice(0, 10).forEach(activity => {
+        activities.forEach(activity => {
             const item = $(`
                 <div class="dropdown-item" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f0f0f0;"
                      data-value="${activity.name}">
@@ -1398,10 +1716,6 @@ class WeeklyTimesheet {
 
             dropdown.append(item);
         });
-
-        if (activities.length > 10) {
-            dropdown.append(`<div style="padding: 8px; color: #666; font-style: italic;">Showing first 10 results</div>`);
-        }
     }
 
     generate_day_cells(row_id, task_data = null) {
@@ -1409,6 +1723,7 @@ class WeeklyTimesheet {
         for (let day = 0; day < 7; day++) {
             const hours = task_data ? this.format_hours(task_data.daily_hours[day]) : '';
             const description = task_data && task_data.notes ? task_data.notes[day] : '';
+            const is_billable = task_data && task_data.billable ? task_data.billable[day] : 0;
 
             cells += `
                 <td class="text-center day-cell" data-day="${day}">
@@ -1419,12 +1734,17 @@ class WeeklyTimesheet {
                            data-day="${day}"
                            data-row-id="${row_id}"
                            data-description="${description}"
+                           data-billable="${is_billable}"
                            title="${description || __('Click to add description')}"
                            style="cursor: pointer; margin-left: 2px; color: ${description ? '#007bff' : '#999'};"></i>
                         <input type="hidden" class="time-description"
                                data-day="${day}"
                                data-row-id="${row_id}"
                                value="${description}">
+                        <input type="hidden" class="time-billable"
+                               data-day="${day}"
+                               data-row-id="${row_id}"
+                               value="${is_billable}">
                     </div>
                 </td>
             `;
@@ -1491,29 +1811,233 @@ class WeeklyTimesheet {
         const day = icon.data('day');
         const row_id = icon.data('row-id');
         const current_description = icon.data('description') || '';
+        const current_billable = icon.data('billable') || 0;
 
-        // Create a simple prompt dialog for description
-        frappe.prompt({
-            label: __('Description'),
-            fieldname: 'description',
-            fieldtype: 'Small Text',
-            default: current_description,
-            description: __('Enter description for this time entry')
-        }, (values) => {
-            const new_description = values.description || '';
+        // Check if popover already exists for this icon
+        if ($('body').find(`.description-popover[data-row-id="${row_id}"][data-day="${day}"]`).length > 0) {
+            return;
+        }
 
-            // Update the hidden input
-            const hidden_input = $(`tr[data-row-id="${row_id}"] .time-description[data-day="${day}"]`);
-            hidden_input.val(new_description);
+        // Hide any other open description popovers
+        $('body').find('.description-popover').remove();
 
-            // Update the icon
+        const isMobile = this.isMobileView();
+
+        // Create popover and append to body (outside the table)
+        const popover = $(`
+            <div class="description-popover"
+                 data-row-id="${row_id}"
+                 data-day="${day}"
+                 style="
+                position: fixed;
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 6px;
+                box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+                z-index: 999999;
+                ${!isMobile ? 'padding: 12px; min-width: 300px; max-width: 400px;' : ''}
+            ">
+                ${isMobile ? `
+                    <div class="description-header">
+                        <h5 style="margin: 0; font-size: 16px; font-weight: 500;">${__('Time Entry Details')}</h5>
+                        <button class="mobile-dropdown-close close-description" style="background: none; border: none; font-size: 24px; cursor: pointer; padding: 0; width: 30px; height: 30px;">&times;</button>
+                    </div>
+                    <div class="description-body">
+                        <div style="margin-bottom: 12px;">
+                            <label style="font-weight: 500; font-size: 14px; margin-bottom: 5px; display: block;">${__('Description')}</label>
+                            <textarea class="form-control description-textarea"
+                                      placeholder="${__('Add description...')}"
+                                      style="border: 1px solid #ced4da; resize: vertical;">${current_description}</textarea>
+                        </div>
+                        <div style="margin-top: 12px;">
+                            <label class="checkbox" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="billable-checkbox" style="margin-right: 8px; width: 18px; height: 18px; cursor: pointer;">
+                                <span style="font-size: 15px;">${__('Billable')}</span>
+                            </label>
+                        </div>
+
+                    </div>
+                    <div class="description-footer">
+                        <button class="btn btn-sm btn-primary close-description" style="width: 100%;">${__('Done')}</button>
+                    </div>
+                ` : `
+                    <div style="margin-bottom: 8px; font-weight: 500; color: #495057;">
+                        ${__('Time Entry Details')}
+                    </div>
+                    <textarea class="form-control form-control-sm description-textarea"
+                              placeholder="${__('Add description...')}"
+                              rows="4"
+                              style="resize: vertical; min-height: 80px; font-size: 13px; border: 1px solid #ced4da;">${current_description}</textarea>
+                    <div style="margin-top: 10px;">
+                        <label class="checkbox" style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                            <input type="checkbox" class="billable-checkbox" style="margin-right: 6px; cursor: pointer;">
+                            <span style="font-size: 13px;">${__('Billable')}</span>
+                        </label>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <small style="color: #6c757d;">${__('Auto-saves as you type')}</small>
+                        <button class="btn btn-xs btn-secondary close-description">${__('Close')}</button>
+                    </div>
+                `}
+            </div>
+        `);
+
+        // Append to body
+        $('body').append(popover);
+
+        // Position the popover near the icon (skip on mobile - it's full screen)
+        if (!isMobile) {
+            this.position_description_popover(icon, popover);
+        }
+
+        const textarea = popover.find('.description-textarea');
+        const billableCheckbox = popover.find('.billable-checkbox');
+
+        // Set initial checkbox state
+        billableCheckbox.prop('checked', current_billable == 1);
+
+        // Focus and move cursor to end
+        setTimeout(() => {
+            textarea.focus();
+            textarea[0].setSelectionRange(current_description.length, current_description.length);
+        }, 50);
+
+        // Auto-save on input (debounced)
+        let saveTimeout;
+        const saveData = () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                const new_description = textarea.val() || '';
+                const new_billable = billableCheckbox.is(':checked') ? 1 : 0;
+
+                // Update the hidden inputs
+                const hidden_description = $(`tr[data-row-id="${row_id}"] .time-description[data-day="${day}"]`);
+                const hidden_billable = $(`tr[data-row-id="${row_id}"] .time-billable[data-day="${day}"]`);
+
+                hidden_description.val(new_description);
+                hidden_billable.val(new_billable);
+
+                // Update the icon
+                icon.data('description', new_description);
+                icon.data('billable', new_billable);
+                icon.attr('title', new_description || __('Click to add description'));
+                icon.css('color', new_description ? '#007bff' : '#999');
+
+                this.mark_as_changed();
+            }, 500); // Auto-save after 500ms of no typing
+        };
+
+        textarea.on('input', saveData);
+        billableCheckbox.on('change', saveData);
+
+        // Close button handler
+        popover.find('.close-description').on('click', () => {
+            // Save one final time before closing
+            const new_description = textarea.val() || '';
+            const new_billable = billableCheckbox.is(':checked') ? 1 : 0;
+
+            const hidden_description = $(`tr[data-row-id="${row_id}"] .time-description[data-day="${day}"]`);
+            const hidden_billable = $(`tr[data-row-id="${row_id}"] .time-billable[data-day="${day}"]`);
+
+            hidden_description.val(new_description);
+            hidden_billable.val(new_billable);
+
             icon.data('description', new_description);
+            icon.data('billable', new_billable);
             icon.attr('title', new_description || __('Click to add description'));
             icon.css('color', new_description ? '#007bff' : '#999');
 
-            this.mark_as_changed(); // Mark as changed when description is updated
+            popover.remove();
+        });
 
-        }, __('Edit Description'));
+        // Click outside to close
+        setTimeout(() => {
+            $(document).on('click.description-popover', (e) => {
+                if (!popover.is(e.target) && popover.has(e.target).length === 0 &&
+                    !icon.is(e.target) && icon.has(e.target).length === 0) {
+                    // Save before closing
+                    const new_description = textarea.val() || '';
+                    const new_billable = billableCheckbox.is(':checked') ? 1 : 0;
+
+                    const hidden_description = $(`tr[data-row-id="${row_id}"] .time-description[data-day="${day}"]`);
+                    const hidden_billable = $(`tr[data-row-id="${row_id}"] .time-billable[data-day="${day}"]`);
+
+                    hidden_description.val(new_description);
+                    hidden_billable.val(new_billable);
+
+                    icon.data('description', new_description);
+                    icon.data('billable', new_billable);
+                    icon.attr('title', new_description || __('Click to add description'));
+                    icon.css('color', new_description ? '#007bff' : '#999');
+
+                    popover.remove();
+                    $(document).off('click.description-popover');
+                }
+            });
+        }, 100);
+
+        // Reposition on scroll/resize (only for desktop)
+        if (!isMobile) {
+            $(window).on('scroll.description-popover resize.description-popover', () => {
+                if (popover.is(':visible')) {
+                    this.position_description_popover(icon, popover);
+                }
+            });
+
+            // Clean up window events when popover is removed
+            popover.on('remove', () => {
+                $(window).off('scroll.description-popover resize.description-popover');
+            });
+        }
+    }
+
+    position_description_popover(icon, popover) {
+        const iconOffset = icon.offset();
+        const iconHeight = icon.outerHeight();
+        const iconWidth = icon.outerWidth();
+        const windowHeight = $(window).height();
+        const windowWidth = $(window).width();
+        const popoverHeight = popover.outerHeight();
+        const popoverWidth = popover.outerWidth();
+
+        // Calculate available space
+        const spaceBelow = windowHeight - (iconOffset.top + iconHeight);
+        const spaceAbove = iconOffset.top;
+        const spaceRight = windowWidth - iconOffset.left;
+
+        let top, left;
+
+        // Vertical positioning: prefer below, but use above if not enough space
+        if (spaceBelow >= popoverHeight + 10 || spaceBelow > spaceAbove) {
+            // Position below
+            top = iconOffset.top + iconHeight + 5;
+        } else {
+            // Position above
+            top = iconOffset.top - popoverHeight - 5;
+        }
+
+        // Horizontal positioning: try to center, but adjust if it goes off screen
+        left = iconOffset.left + (iconWidth / 2) - (popoverWidth / 2);
+
+        // Adjust if goes off right edge
+        if (left + popoverWidth > windowWidth - 20) {
+            left = windowWidth - popoverWidth - 20;
+        }
+
+        // Adjust if goes off left edge
+        if (left < 20) {
+            left = 20;
+        }
+
+        // Ensure top doesn't go negative
+        if (top < 10) {
+            top = 10;
+        }
+
+        popover.css({
+            'top': top + 'px',
+            'left': left + 'px'
+        });
     }
 
     handle_time_change(row_id, input) {
@@ -1663,9 +2187,9 @@ class WeeklyTimesheet {
                 day_totals[day] += hours;
                 row_total += hours;
 
-                // Determine if billable
-                const is_billable = $row.find('.indicator.green').length > 0;
-                if (is_billable) {
+                // Determine if billable from hidden input
+                const is_billable = parseInt($row.find(`.time-billable[data-day="${day}"]`).val() || 0);
+                if (is_billable === 1) {
                     billable_total += hours;
                 } else {
                     non_billable_total += hours;
@@ -1809,8 +2333,9 @@ class WeeklyTimesheet {
                 const hours = this.parse_time_input($(input).val());
 
                 if (hours > 0) {
-                    // Get description for this specific day
+                    // Get description and billable flag for this specific day
                     const description = $row.find(`.time-description[data-day="${day}"]`).val() || '';
+                    const is_billable = parseInt($row.find(`.time-billable[data-day="${day}"]`).val() || 0);
 
                     const entry_date = new Date(this.timesheet_data.date_range.start_date);
                     entry_date.setDate(entry_date.getDate() + day);
@@ -1821,8 +2346,8 @@ class WeeklyTimesheet {
                         task: null, // We can add task support later
                         activity_type: activity_type || null,
                         hours: hours,
-                        is_billable: 0, // Default to non-billable since we removed the checkbox
-                        billing_hours: 0, // Default to 0 since we removed the checkbox
+                        is_billable: is_billable,
+                        billing_hours: is_billable ? hours : 0, // Set billing hours equal to hours if billable
                         from_time: this.format_datetime_for_frappe(entry_date),
                         to_time: this.format_datetime_for_frappe(this.add_hours_to_date(entry_date, hours)),
                         description: description
